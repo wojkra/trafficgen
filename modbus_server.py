@@ -4,23 +4,30 @@ from pymodbus.server.sync import StartTcpServer
 from pymodbus.datastore import ModbusSlaveContext, ModbusServerContext
 from pymodbus.datastore import ModbusSequentialDataBlock
 import logging
+import sys
 
 def run_server():
     # Konfiguracja logowania
-    logging.basicConfig()
+    logging.basicConfig(stream=sys.stdout)
     log = logging.getLogger()
-    log.setLevel(logging.INFO)
+    log.setLevel(logging.DEBUG)
 
-    # Inicjalizacja magazynu danych
+    # Inicjalizacja magazynu danych z wartościami losowymi
+    import random
+    di_values = [random.randint(0, 1) for _ in range(100)]
+    co_values = [random.randint(0, 1) for _ in range(100)]
+    hr_values = [random.randint(0, 100) for _ in range(100)]
+    ir_values = [random.randint(0, 100) for _ in range(100)]
+
     store = ModbusSlaveContext(
-        di=ModbusSequentialDataBlock(0, [0]*100),
-        co=ModbusSequentialDataBlock(0, [0]*100),
-        hr=ModbusSequentialDataBlock(0, [0]*100),
-        ir=ModbusSequentialDataBlock(0, [0]*100))
+        di=ModbusSequentialDataBlock(0, di_values),
+        co=ModbusSequentialDataBlock(0, co_values),
+        hr=ModbusSequentialDataBlock(0, hr_values),
+        ir=ModbusSequentialDataBlock(0, ir_values))
     context = ModbusServerContext(slaves=store, single=True)
 
-    # Uruchomienie serwera Modbus na ens38 (192.168.81.2), port 502
-    StartTcpServer(context, address=("192.168.81.2", 502))
+    # Uruchomienie serwera Modbus na wszystkich interfejsach, port 502
+    StartTcpServer(context, address=("0.0.0.0", 502))
 
 if __name__ == "__main__":
     run_server()
