@@ -12,37 +12,36 @@ echo "Konfiguracja przestrzeni nazw sieciowych i interfejsów..."
 ip netns add ns1
 ip netns add ns2
 
-# 2. Utworzenie pary interfejsów veth
-ip link add veth0 type veth peer name veth1
+# 2. Przeniesienie interfejsów fizycznych do odpowiednich przestrzeni nazw
+ip link set ens37 netns ns1
+ip link set ens38 netns ns2
 
-# 3. Przeniesienie interfejsów veth do przestrzeni nazw
-ip link set veth0 netns ns1
-ip link set veth1 netns ns2
-
-# 4. Konfiguracja interfejsu w przestrzeni nazw ns1
-ip netns exec ns1 ip addr add 192.168.81.1/24 dev veth0
-ip netns exec ns1 ip link set veth0 up
+# 3. Konfiguracja interfejsu w przestrzeni nazw ns1 (ens37)
+ip netns exec ns1 ip addr flush dev ens37
+ip netns exec ns1 ip addr add 192.168.81.1/24 dev ens37
+ip netns exec ns1 ip link set ens37 up
 ip netns exec ns1 ip link set lo up
 
-# 5. Konfiguracja interfejsu w przestrzeni nazw ns2
-ip netns exec ns2 ip addr add 192.168.2.1/24 dev veth1
-ip netns exec ns2 ip link set veth1 up
+# 4. Konfiguracja interfejsu w przestrzeni nazw ns2 (ens38)
+ip netns exec ns2 ip addr flush dev ens38
+ip netns exec ns2 ip addr add 192.168.81.2/24 dev ens38
+ip netns exec ns2 ip link set ens38 up
 ip netns exec ns2 ip link set lo up
 
-# 6. Sprawdzenie stanu interfejsów
+# 5. Sprawdzenie stanu interfejsów w przestrzeniach nazw
 echo "Interfejsy w ns1:"
-ip netns exec ns1 ip addr show veth0
+ip netns exec ns1 ip addr show ens37
 echo ""
 echo "Interfejsy w ns2:"
-ip netns exec ns2 ip addr show veth1
+ip netns exec ns2 ip addr show ens38
 echo ""
 
-# 7. Informacje dla użytkownika
+# 6. Informacje dla użytkownika
 echo "Konfiguracja zakończona."
 echo ""
 echo "Aby przetestować połączenie, użyj następujących poleceń:"
 echo "Ping z ns1 do ns2:"
-echo "sudo ip netns exec ns1 ping 192.168.2.1"
+echo "sudo ip netns exec ns1 ping 192.168.81.2"
 echo ""
 echo "Ping z ns2 do ns1:"
 echo "sudo ip netns exec ns2 ping 192.168.81.1"
