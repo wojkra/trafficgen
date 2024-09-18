@@ -34,30 +34,43 @@ base_ip="192.168.81."
 # Numer IP zaczyna się od 2 (zakładamy, że 1 jest zajęte przez klienta)
 ip_counter=2
 
+# Czyszczenie istniejących przestrzeni nazw i interfejsów
+for ns in "${!nodes[@]}"; do
+  ip netns delete "$ns" 2>/dev/null
+  protocol=${nodes[$ns]}
+  veth_host="veth_host_$protocol"
+  ip link delete "$veth_host" 2>/dev/null
+done
+
 # 1. Tworzenie przestrzeni nazw i konfiguracja interfejsów
 for ns in "${!nodes[@]}"; do
+  # Pobranie nazwy protokołu
+  protocol=${nodes[$ns]}
+  
+  # Tworzenie pary interfejsów veth z nazwami opartymi na protokole
+  veth_host="veth_host_$protocol"
+  veth_ns="veth_ns_$protocol"
+  
   # Tworzenie przestrzeni nazw
   ip netns add "$ns"
-
+  
   # Tworzenie pary interfejsów veth
-  veth_host="veth_host_$ns"
-  veth_ns="veth_ns_$ns"
   ip link add "$veth_host" type veth peer name "$veth_ns"
-
+  
   # Przeniesienie jednego końca veth do przestrzeni nazw
   ip link set "$veth_ns" netns "$ns"
-
+  
   # Konfiguracja interfejsu w przestrzeni nazw
   ip netns exec "$ns" ip addr add "${base_ip}${ip_counter}/24" dev "$veth_ns"
   ip netns exec "$ns" ip link set "$veth_ns" up
   ip netns exec "$ns" ip link set lo up
-
+  
   # Konfiguracja interfejsu po stronie hosta
   ip link set "$veth_host" up
-
-  # Dodanie trasy routingu w przestrzeni nazw
+  
+  # Dodanie trasy domyślnej w przestrzeni nazw
   ip netns exec "$ns" ip route add default via "${base_ip}1"
-
+  
   # Zwiększenie licznika IP
   ((ip_counter++))
 done
@@ -79,11 +92,12 @@ iptables -P FORWARD ACCEPT
 for ns in "${!nodes[@]}"; do
   protocol=${nodes[$ns]}
   port=${protocols[$protocol]}
-  veth_ns="veth_ns_$ns"
+  veth_ns="veth_ns_$protocol"
   ip_ns=$(ip netns exec "$ns" ip -4 addr show "$veth_ns" | grep -oP '(?<=inet\s)\d+(\.\d+){3}')
-
+  
   echo "Tworzenie serwera dla protokołu $protocol w $ns..."
 
+  # Tworzenie skryptu serwera w przestrzeni nazw
   case $protocol in
     "modbus")
       # Skrypt serwera Modbus
@@ -154,9 +168,9 @@ echo "Tworzenie klientów na hoście..."
 for ns in "${!nodes[@]}"; do
   protocol=${nodes[$ns]}
   port=${protocols[$protocol]}
-  veth_ns="veth_ns_$ns"
+  veth_ns="veth_ns_$protocol"
   ip_ns=$(ip netns exec "$ns" ip -4 addr show "$veth_ns" | grep -oP '(?<=inet\s)\d+(\.\d+){3}')
-
+  
   echo "Tworzenie klienta dla protokołu $protocol..."
 
   case $protocol in
