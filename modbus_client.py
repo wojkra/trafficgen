@@ -25,7 +25,7 @@ def run_client():
         coil_addr = random.randint(1, 10)
         coil_value = random.randint(0, 1)
         reg_addr = random.randint(1, 10)
-        register_value = random.randint(0, 100)
+        register_value = random.randint(0, 10)
 
         # Zapis losowej wartości do cewki
         client.write_coil(coil_addr, coil_value)
