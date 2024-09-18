@@ -1,30 +1,35 @@
 #!/usr/bin/env python3
 
-import time
 from pymodbus.client.sync import ModbusTcpClient
+import random
+import time
 
-def modbus_client():
-    client = ModbusTcpClient("192.168.81.1", port=5020)
+def run_client():
+    # Połączenie z serwerem Modbus na 192.168.81.2, port 502, z ens37 (192.168.81.1)
+    client = ModbusTcpClient('192.168.81.2', port=502, source_address=("192.168.81.1", 0))
+
+    client.connect()
+
     while True:
-        # Operacje na Coils
-        rq = client.write_coil(1, True)
-        rr = client.read_coils(1, 1)
-        print(f"Coil[1] = {rr.bits[0]}")
+        # Generowanie losowych wartości
+        coil_value = random.randint(0, 1)
+        register_value = random.randint(0, 100)
 
-        # Operacje na Discrete Inputs
-        rr = client.read_discrete_inputs(1, 1)
-        print(f"Discrete Input[1] = {rr.bits[0]}")
+        # Zapis losowej wartości do cewki
+        client.write_coil(1, coil_value)
 
-        # Operacje na Holding Registers
-        rq = client.write_register(1, 42)
-        rr = client.read_holding_registers(1, 1)
-        print(f"Holding Register[1] = {rr.registers[0]}")
+        # Zapis losowej wartości do rejestru holding
+        client.write_register(1, register_value)
 
-        # Operacje na Input Registers
-        rr = client.read_input_registers(1, 1)
-        print(f"Input Register[1] = {rr.registers[0]}")
+        # Odczyt cewek
+        rr = client.read_coils(1, 10)
+        # Odczyt rejestrów holding
+        rr = client.read_holding_registers(1, 10)
 
-        time.sleep(15)
+        # Odczekaj 1 sekundę
+        time.sleep(1)
+
+    client.close()
 
 if __name__ == "__main__":
-    modbus_client()
+    run_client()
