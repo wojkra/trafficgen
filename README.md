@@ -1,18 +1,9 @@
 **Nadaj uprawnienia wykonania:**
 
-_chmod +x main_script.sh modbus_server.py modbus_client.py_
+chmod +x modbus_server.py
 
-**Uruchom main_script.sh z uprawnieniami administratora:**
+chmod +x modbus_client.py
 
-_sudo ./main_script.sh_
+chmod +x main.py
 
-**Monitorowanie ruchu na interfejsie ens37**
 
-_sudo tcpdump -i ens37 port 5020 -vv
-_
-**Przekazywanie IP:
-Skrypt włącza przekazywanie IP na hoście, ale możesz to sprawdzić poleceniem:**
-
-_cat /proc/sys/net/ipv4/ip_forward
-_
-**Powinno zwrócić 1.**
