@@ -12,32 +12,29 @@ echo "Konfiguracja przestrzeni nazw sieciowych i interfejsów..."
 ip netns add ns1
 ip netns add ns2
 
-# 2. Przeniesienie interfejsów fizycznych do odpowiednich przestrzeni nazw
-ip link set ens37 netns ns1
-ip link set ens38 netns ns2
+# 2. Utworzenie pary interfejsów veth
+ip link add veth0 type veth peer name veth1
 
-# 3. Konfiguracja interfejsu w przestrzeni nazw ns1 (ens37)
-ip netns exec ns1 ip addr flush dev ens37
-ip netns exec ns1 ip addr add 192.168.81.1/24 dev ens37
-ip netns exec ns1 ip link set ens37 up
+# 3. Przeniesienie interfejsów veth do przestrzeni nazw
+ip link set veth0 netns ns1
+ip link set veth1 netns ns2
+
+# 4. Konfiguracja interfejsu w przestrzeni nazw ns1
+ip netns exec ns1 ip addr add 192.168.81.1/24 dev veth0
+ip netns exec ns1 ip link set veth0 up
 ip netns exec ns1 ip link set lo up
 
-# 4. Konfiguracja interfejsu w przestrzeni nazw ns2 (ens38)
-ip netns exec ns2 ip addr flush dev ens38
-ip netns exec ns2 ip addr add 192.168.2.1/24 dev ens38
-ip netns exec ns2 ip link set ens38 up
+# 5. Konfiguracja interfejsu w przestrzeni nazw ns2
+ip netns exec ns2 ip addr add 192.168.2.1/24 dev veth1
+ip netns exec ns2 ip link set veth1 up
 ip netns exec ns2 ip link set lo up
 
-# 5. Umożliwienie komunikacji między przestrzeniami nazw (opcjonalnie)
-# Możemy utworzyć mostek sieciowy lub użyć pary interfejsów veth, ale ponieważ używamy fizycznych interfejsów,
-# ruch między nimi powinien przechodzić przez fizyczną sieć (vSwitch na ESXi)
-
-# 6. Sprawdzenie stanu interfejsów w przestrzeniach nazw
+# 6. Sprawdzenie stanu interfejsów
 echo "Interfejsy w ns1:"
-ip netns exec ns1 ip addr show ens37
+ip netns exec ns1 ip addr show veth0
 echo ""
 echo "Interfejsy w ns2:"
-ip netns exec ns2 ip addr show ens38
+ip netns exec ns2 ip addr show veth1
 echo ""
 
 # 7. Informacje dla użytkownika
