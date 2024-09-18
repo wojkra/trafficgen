@@ -1,59 +1,34 @@
 c4-linux@pc4-linux:~/Pulpit$ sudo ./ot_simulation.sh
 Konfiguracja przestrzeni nazw sieciowych i interfejsów...
-Cannot create namespace file "/run/netns/ns_iec104": File exists
-Error: argument "veth_ns_ns_iec104" is wrong: "name" not a valid ifname
-Cannot find device "veth_ns_ns_iec104"
-Cannot find device "veth_ns_ns_iec104"
-Cannot find device "veth_ns_ns_iec104"
-Cannot find device "veth_host_ns_iec104"
-Error: Nexthop has invalid gateway.
-Cannot create namespace file "/run/netns/ns_vnc": File exists
 Invalid extack attribute
 RTNETLINK answers: Numerical result out of range
-Cannot find device "veth_ns_ns_vnc"
-Cannot find device "veth_ns_ns_vnc"
-Cannot find device "veth_ns_ns_vnc"
-Cannot find device "veth_host_ns_vnc"
+Cannot find device "veth_ns_iec104"
+Cannot find device "veth_ns_iec104"
+Cannot find device "veth_ns_iec104"
+Cannot find device "veth_host_iec104"
 Error: Nexthop has invalid gateway.
-Cannot create namespace file "/run/netns/ns_ntp": File exists
 Invalid extack attribute
 RTNETLINK answers: Numerical result out of range
-Cannot find device "veth_ns_ns_ntp"
-Cannot find device "veth_ns_ns_ntp"
-Cannot find device "veth_ns_ns_ntp"
-Cannot find device "veth_host_ns_ntp"
+Cannot find device "veth_ns_modbus"
+Cannot find device "veth_ns_modbus"
+Cannot find device "veth_ns_modbus"
+Cannot find device "veth_host_modbus"
 Error: Nexthop has invalid gateway.
-Cannot create namespace file "/run/netns/ns_modbus": File exists
-Error: argument "veth_ns_ns_modbus" is wrong: "name" not a valid ifname
-Cannot find device "veth_ns_ns_modbus"
-Cannot find device "veth_ns_ns_modbus"
-Cannot find device "veth_ns_ns_modbus"
-Cannot find device "veth_host_ns_modbus"
-Error: Nexthop has invalid gateway.
-Cannot create namespace file "/run/netns/ns_s7": File exists
-RTNETLINK answers: File exists
-Cannot find device "veth_ns_ns_s7"
-RTNETLINK answers: File exists
-RTNETLINK answers: File exists
 Włączanie przekazywania IP...
 net.ipv4.ip_forward = 1
-Device "veth_ns_ns_iec104" does not exist.
+Device "veth_ns_iec104" does not exist.
 Tworzenie serwera dla protokołu iec104 w ns_iec104...
-Device "veth_ns_ns_vnc" does not exist.
 Tworzenie serwera dla protokołu vnc w ns_vnc...
-Device "veth_ns_ns_ntp" does not exist.
 Tworzenie serwera dla protokołu ntp w ns_ntp...
-Device "veth_ns_ns_modbus" does not exist.
+Device "veth_ns_modbus" does not exist.
 Tworzenie serwera dla protokołu modbus w ns_modbus...
 Tworzenie serwera dla protokołu s7 w ns_s7...
 Tworzenie klientów na hoście...
-Device "veth_ns_ns_iec104" does not exist.
+Device "veth_ns_iec104" does not exist.
 Tworzenie klienta dla protokołu iec104...
-Device "veth_ns_ns_vnc" does not exist.
 Tworzenie klienta dla protokołu vnc...
-Device "veth_ns_ns_ntp" does not exist.
 Tworzenie klienta dla protokołu ntp...
-Device "veth_ns_ns_modbus" does not exist.
+Device "veth_ns_modbus" does not exist.
 Tworzenie klienta dla protokołu modbus...
 Tworzenie klienta dla protokołu s7...
 Uruchamianie serwerów w przestrzeniach nazw...
@@ -62,64 +37,18 @@ Symulacja protokołów OT jest uruchomiona.
 Aby zatrzymać symulację, użyj polecenia 'pkill -f client_' i 'pkill -f server_'
 
 Aby monitorować ruch, użyj polecenia 'tcpdump' na interfejsach veth lub ens37.
-pc4-linux@pc4-linux:~/Pulpit$ ERROR:pymodbus.client.sync:Connection to (, 502) failed: [Errno -2] Name or service not known
+pc4-linux@pc4-linux:~/Pulpit$ Symulacja serwera iec104 uruchomiona na :2404
+Symulacja serwera vnc uruchomiona na 192.168.81.3:5900
+Symulacja serwera ntp uruchomiona na 192.168.81.4:123
+Symulacja serwera s7 uruchomiona na 192.168.81.6:102
 ERROR:pymodbus.client.sync:Connection to (, 502) failed: [Errno -2] Name or service not known
-Traceback (most recent call last):
-  File "server_iec104.py", line 23, in <module>
-    simulate_server()
-  File "server_iec104.py", line 8, in simulate_server
-    s.bind(('', 2404))
-OSError: [Errno 98] Address already in use
-Traceback (most recent call last):
-  File "server_vnc.py", line 23, in <module>
-    simulate_server()
-  File "server_vnc.py", line 8, in simulate_server
-    s.bind(('', 5900))
-OSError: [Errno 98] Address already in use
-Traceback (most recent call last):
-  File "server_ntp.py", line 23, in <module>
-    simulate_server()
-  File "server_ntp.py", line 8, in simulate_server
-    s.bind(('', 123))
-OSError: [Errno 98] Address already in use
-Traceback (most recent call last):
-  File "server_s7.py", line 23, in <module>
-    simulate_server()
-  File "server_s7.py", line 8, in simulate_server
-    s.bind(('192.168.81.6', 102))
-OSError: [Errno 98] Address already in use
+ERROR:pymodbus.client.sync:Connection to (, 502) failed: [Errno -2] Name or service not known
 Traceback (most recent call last):
   File "client_iec104.py", line 22, in <module>
     simulate_client()
   File "client_iec104.py", line 8, in simulate_client
     s.connect(('', 2404))
-Traceback (most recent call last):
-  File "client_ntp.py", line 22, in <module>
 ConnectionRefusedError: [Errno 111] Connection refused
-    simulate_client()
-  File "client_ntp.py", line 8, in simulate_client
-    s.connect(('', 123))
-ConnectionRefusedError: [Errno 111] Connection refused
-Traceback (most recent call last):
-  File "client_vnc.py", line 22, in <module>
-    simulate_client()
-  File "client_vnc.py", line 8, in simulate_client
-    s.connect(('', 5900))
-ConnectionRefusedError: [Errno 111] Connection refused
-Traceback (most recent call last):
-  File "server_modbus.py", line 24, in <module>
-    run_server()
-  File "server_modbus.py", line 21, in run_server
-    StartTcpServer(context, address=('', 502))
-  File "/usr/local/lib/python3.8/dist-packages/pymodbus/server/sync.py", line 620, in StartTcpServer
-    server = ModbusTcpServer(context, framer, identity, address, **kwargs)
-  File "/usr/local/lib/python3.8/dist-packages/pymodbus/server/sync.py", line 338, in __init__
-    socketserver.ThreadingTCPServer.__init__(self, self.address,
-  File "/usr/lib/python3.8/socketserver.py", line 452, in __init__
-    self.server_bind()
-  File "/usr/lib/python3.8/socketserver.py", line 466, in server_bind
-    self.socket.bind(self.server_address)
-OSError: [Errno 98] Address already in use
 Traceback (most recent call last):
   File "client_modbus.py", line 34, in <module>
     run_client()
@@ -131,10 +60,21 @@ Traceback (most recent call last):
     raise ConnectionException("Failed to connect[%s]" % (self.__str__()))
 pymodbus.exceptions.ConnectionException: Modbus Error: [Connection] Failed to connect[ModbusTcpClient(:502)]
 Traceback (most recent call last):
+  File "client_vnc.py", line 22, in <module>
+    simulate_client()
+  File "client_vnc.py", line 8, in simulate_client
+    s.connect(('192.168.81.3', 5900))
+OSError: [Errno 113] No route to host
+Traceback (most recent call last):
+  File "client_ntp.py", line 22, in <module>
+    simulate_client()
+  File "client_ntp.py", line 8, in simulate_client
+    s.connect(('192.168.81.4', 123))
+OSError: [Errno 113] No route to host
+Traceback (most recent call last):
   File "client_s7.py", line 22, in <module>
     simulate_client()
   File "client_s7.py", line 8, in simulate_client
     s.connect(('192.168.81.6', 102))
 OSError: [Errno 113] No route to host
-pc4-linux@pc4-linux:~/Pulpit$ 
 
