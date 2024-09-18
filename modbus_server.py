@@ -16,8 +16,8 @@ def run_server():
     import random
     di_values = [random.randint(0, 1) for _ in range(100)]
     co_values = [random.randint(0, 1) for _ in range(100)]
-    hr_values = [random.randint(0, 100) for _ in range(100)]
-    ir_values = [random.randint(0, 100) for _ in range(100)]
+    hr_values = [random.randint(0, 10) for _ in range(100)]
+    ir_values = [random.randint(0, 10) for _ in range(100)]
 
     store = ModbusSlaveContext(
         di=ModbusSequentialDataBlock(0, di_values),
