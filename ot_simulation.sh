@@ -15,7 +15,7 @@ protocols=(
   ["iec104"]=2404
   ["s7"]=102
   ["ntp"]=123
-  ["vnc"]=5901
+  ["vnc"]=5900
 )
 
 # Lista węzłów (przestrzeni nazw) i przypisanych protokołów
@@ -86,43 +86,61 @@ for ns in "${!nodes[@]}"; do
 
   case $protocol in
     "modbus")
-      # Tworzenie skryptu serwera Modbus (bez zmian)
-      # ...
-      ;;
-    "iec104")
-      # Tworzenie skryptu serwera IEC104 (bez zmian)
-      # ...
-      ;;
-    "s7")
-      # Tworzenie skryptu serwera S7 (bez zmian)
-      # ...
-      ;;
-    "ntp")
-      # Konfiguracja serwera NTP (bez zmian)
-      # ...
-      ;;
-    "vnc")
-      # Instalacja i konfiguracja serwera VNC w przestrzeni nazw
-      ip netns exec "$ns" bash -c "
-      apt-get update
-      apt-get install -y xfce4 xfce4-goodies tightvncserver
+      # Skrypt serwera Modbus
+      ip netns exec "$ns" bash -c "cat > server_$protocol.py << EOF
+#!/usr/bin/env python3
 
-      # Ustawienie hasła VNC (domyślnie 'vncpassword', możesz zmienić)
-      mkdir -p /root/.vnc
-      echo 'vncpassword' | vncpasswd -f > /root/.vnc/passwd
-      chmod 600 /root/.vnc/passwd
+from pymodbus.server.sync import StartTcpServer
+from pymodbus.datastore import ModbusSlaveContext, ModbusServerContext
+from pymodbus.datastore import ModbusSequentialDataBlock
+import logging
+import sys
 
-      # Tworzenie pliku startup dla VNC
-      cat > /root/.vnc/xstartup << EOF
-#!/bin/sh
-xrdb \$HOME/.Xresources
-startxfce4 &
-EOF
-      chmod +x /root/.vnc/xstartup
+def run_server():
+    logging.basicConfig(stream=sys.stdout)
+    log = logging.getLogger()
+    log.setLevel(logging.INFO)
 
-      # Uruchomienie serwera VNC
-      vncserver :1 -geometry 1024x768 -depth 16
-      "
+    store = ModbusSlaveContext(
+        di=ModbusSequentialDataBlock(0, [17]*100),
+        co=ModbusSequentialDataBlock(0, [17]*100),
+        hr=ModbusSequentialDataBlock(0, [17]*100),
+        ir=ModbusSequentialDataBlock(0, [17]*100))
+    context = ModbusServerContext(slaves=store, single=True)
+
+    StartTcpServer(context, address=('$ip_ns', $port))
+
+if __name__ == '__main__':
+    run_server()
+EOF"
+      ;;
+    "iec104"|"s7"|"ntp"|"vnc")
+      # Symulacja serwera - generowanie sztucznego ruchu
+      ip netns exec "$ns" bash -c "cat > server_$protocol.py << EOF
+#!/usr/bin/env python3
+
+import socket
+import time
+
+def simulate_server():
+    s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    s.bind(('$ip_ns', $port))
+    s.listen(1)
+    print('Symulacja serwera $protocol uruchomiona na $ip_ns:$port')
+    conn, addr = s.accept()
+    with conn:
+        print('Połączenie od', addr)
+        while True:
+            data = conn.recv(1024)
+            if not data:
+                break
+            # Symulujemy odpowiedź
+            conn.sendall(data)
+    s.close()
+
+if __name__ == '__main__':
+    simulate_server()
+EOF"
       ;;
     *)
       echo "Nieznany protokół: $protocol"
@@ -143,27 +161,70 @@ for ns in "${!nodes[@]}"; do
 
   case $protocol in
     "modbus")
-      # Tworzenie skryptu klienta Modbus (bez zmian)
-      # ...
+      # Skrypt klienta Modbus
+      cat > client_$protocol.py << EOF
+#!/usr/bin/env python3
+
+from pymodbus.client.sync import ModbusTcpClient
+import random
+import time
+import logging
+import sys
+
+def run_client():
+    logging.basicConfig(stream=sys.stdout)
+    log = logging.getLogger()
+    log.setLevel(logging.INFO)
+
+    client = ModbusTcpClient("$ip_ns", port=$port)
+    client.connect()
+
+    while True:
+        coil_addr = random.randint(1, 10)
+        coil_value = random.randint(0, 1)
+        reg_addr = random.randint(1, 10)
+        register_value = random.randint(0, 100)
+
+        client.write_coil(coil_addr, coil_value)
+        log.info(f"Written coil at {coil_addr}: {coil_value}")
+
+        client.write_register(reg_addr, register_value)
+        log.info(f"Written register at {reg_addr}: {register_value}")
+
+        time.sleep(1)
+
+    client.close()
+
+if __name__ == "__main__":
+    run_client()
+EOF
       ;;
-    "iec104")
-      # Tworzenie skryptu klienta IEC104 (bez zmian)
-      # ...
-      ;;
-    "s7")
-      # Tworzenie skryptu klienta S7 (bez zmian)
-      # ...
-      ;;
-    "ntp")
-      # Tworzenie skryptu klienta NTP (bez zmian)
-      # ...
-      ;;
-    "vnc")
-      # Skrypt do uruchomienia klienta VNC (vncviewer)
-      echo "#!/bin/bash
-vncviewer $ip_ns:1 -passwd <(echo 'vncpassword')
-" > client_$protocol.sh
-      chmod +x client_$protocol.sh
+    "iec104"|"s7"|"ntp"|"vnc")
+      # Symulacja klienta - generowanie sztucznego ruchu
+      cat > client_$protocol.py << EOF
+#!/usr/bin/env python3
+
+import socket
+import time
+
+def simulate_client():
+    s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    s.connect(('$ip_ns', $port))
+    print('Połączono z symulowanym serwerem $protocol na $ip_ns:$port')
+    try:
+        while True:
+            # Wysyłamy sztuczne dane
+            s.sendall(b'Hello $protocol Server')
+            data = s.recv(1024)
+            print('Otrzymano:', data)
+            time.sleep(1)
+    except KeyboardInterrupt:
+        pass
+    s.close()
+
+if __name__ == '__main__':
+    simulate_client()
+EOF
       ;;
     *)
       echo "Nieznany protokół: $protocol"
@@ -171,92 +232,22 @@ vncviewer $ip_ns:1 -passwd <(echo 'vncpassword')
   esac
 done
 
-# 4. Instalacja zależności w przestrzeniach nazw
-echo "Instalacja zależności w przestrzeniach nazw..."
-for ns in "${!nodes[@]}"; do
-  protocol=${nodes[$ns]}
-  case $protocol in
-    "modbus")
-      ip netns exec "$ns" pip3 install pymodbus
-      ;;
-    "iec104")
-      # Zależności IEC104 (bez zmian)
-      # ...
-      ;;
-    "s7")
-      # Zależności S7 (bez zmian)
-      # ...
-      ;;
-    "ntp")
-      # NTP jest usługą systemową
-      ;;
-    "vnc")
-      # Zależności zostały zainstalowane podczas konfiguracji serwera VNC
-      ;;
-  esac
-done
-
-# 5. Instalacja zależności na hoście
-echo "Instalacja zależności na hoście..."
-for protocol in "${nodes[@]}"; do
-  case $protocol in
-    "modbus")
-      pip3 install pymodbus
-      ;;
-    "iec104")
-      # Zależności IEC104 (bez zmian)
-      # ...
-      ;;
-    "s7")
-      # Zależności S7 (bez zmian)
-      # ...
-      ;;
-    "ntp")
-      # NTP klient jest wbudowany w system
-      ;;
-    "vnc")
-      # Instalacja klienta VNC
-      apt-get install -y tigervnc-viewer
-      ;;
-  esac
-done
-
-# 6. Uruchomienie serwerów w przestrzeniach nazw
+# 4. Uruchomienie serwerów w przestrzeniach nazw
 echo "Uruchamianie serwerów w przestrzeniach nazw..."
 for ns in "${!nodes[@]}"; do
   protocol=${nodes[$ns]}
-  case $protocol in
-    "ntp")
-      # NTP serwer jest usługą systemową i już działa
-      ;;
-    "vnc")
-      # Serwer VNC został uruchomiony podczas konfiguracji
-      ;;
-    *)
-      ip netns exec "$ns" bash -c "python3 server_$protocol.py &"
-      ;;
-  esac
+  ip netns exec "$ns" bash -c "python3 server_$protocol.py &"
 done
 
-# 7. Uruchomienie klientów na hoście
+# 5. Uruchomienie klientów na hoście
 echo "Uruchamianie klientów na hoście..."
 for protocol in "${nodes[@]}"; do
-  case $protocol in
-    "ntp")
-      bash -c "./client_$protocol.sh &"
-      ;;
-    "vnc")
-      bash -c "./client_$protocol.sh &"
-      ;;
-    *)
-      bash -c "python3 client_$protocol.py &"
-      ;;
-  esac
+  bash -c "python3 client_$protocol.py &"
 done
 
 echo "Symulacja protokołów OT jest uruchomiona."
 echo "Aby zatrzymać symulację, użyj polecenia 'pkill -f client_' i 'pkill -f server_'"
 
-# 8. Opcjonalne: Monitorowanie ruchu
+# 6. Opcjonalne: Monitorowanie ruchu
 echo ""
 echo "Aby monitorować ruch, użyj polecenia 'tcpdump' na interfejsach veth lub $host_if."
