@@ -1,34 +1,58 @@
 #!/bin/bash
 set -x
+set +e
 
 function cleanup {
     echo "Czyszczenie konfiguracji..."
-    ip netns pids ns_server | xargs kill -9 2>/dev/null
-    ip netns pids ns_client_modbus | xargs kill -9 2>/dev/null
-    ip netns pids ns_client_s7 | xargs kill -9 2>/dev/null
+    # Zabij procesy w przestrzeniach nazw
+    ip netns pids ns_server | xargs -r kill -9
+    ip netns pids ns_client_modbus | xargs -r kill -9
+    ip netns pids ns_client_s7 | xargs -r kill -9
 
-    ip netns exec ns_server ip link set ens37 netns 1 2>/dev/null
-    ip link set ens37 up 2>/dev/null
-    ip addr flush dev ens37 2>/dev/null
+    # Przywróć interfejsy fizyczne do domyślnej przestrzeni nazw
+    if ip netns exec ns_server ip link show $IFACE_SERVER &>/dev/null; then
+        ip netns exec ns_server ip link set $IFACE_SERVER netns 1
+        ip link set $IFACE_SERVER up
+        ip addr flush dev $IFACE_SERVER
+    fi
 
-    ip netns exec ns_client_modbus ip link set ens38 netns 1 2>/dev/null
-    ip link set ens38 up 2>/dev/null
-    ip addr flush dev ens38 2>/dev/null
+    if ip netns exec ns_client_modbus ip link show $IFACE_MODBUS &>/dev/null; then
+        ip netns exec ns_client_modbus ip link set $IFACE_MODBUS netns 1
+        ip link set $IFACE_MODBUS up
+        ip addr flush dev $IFACE_MODBUS
+    fi
 
-    ip netns exec ns_client_modbus ip link set br0 down 2>/dev/null
-    ip netns exec ns_client_modbus brctl delbr br0 2>/dev/null
+    # Usuń most i interfejsy veth
+    ip netns exec ns_client_modbus ip link set br0 down
+    ip netns exec ns_client_modbus brctl delbr br0
 
-    ip link delete veth_s7_br type veth 2>/dev/null
-    ip link delete veth_s7 type veth 2>/dev/null
+    ip link delete veth_s7_br type veth
+    ip link delete veth_s7 type veth
 
-    ip netns delete ns_server 2>/dev/null
-    ip netns delete ns_client_modbus 2>/dev/null
-    ip netns delete ns_client_s7 2>/dev/null
+    # Usuń przestrzenie nazw
+    ip netns delete ns_server
+    ip netns delete ns_client_modbus
+    ip netns delete ns_client_s7
 
     echo "Konfiguracja wyczyszczona."
 }
 
 trap cleanup EXIT
+
+# Ustaw nazwy interfejsów
+IFACE_SERVER="eth0"      # Zmień na nazwę interfejsu serwera
+IFACE_MODBUS="eth1"      # Zmień na nazwę interfejsu klienta Modbus
+
+# Sprawdź, czy interfejsy istnieją
+if ! ip link show $IFACE_SERVER &>/dev/null; then
+    echo "Błąd: Interfejs $IFACE_SERVER nie istnieje."
+    exit 1
+fi
+
+if ! ip link show $IFACE_MODBUS &>/dev/null; then
+    echo "Błąd: Interfejs $IFACE_MODBUS nie istnieje."
+    exit 1
+fi
 
 # Tworzenie przestrzeni nazw
 ip netns add ns_server
@@ -36,20 +60,20 @@ ip netns add ns_client_modbus
 ip netns add ns_client_s7
 
 # Przeniesienie interfejsów fizycznych do przestrzeni nazw
-ip link set ens37 netns ns_server
-ip link set ens38 netns ns_client_modbus
+ip link set $IFACE_SERVER netns ns_server
+ip link set $IFACE_MODBUS netns ns_client_modbus
 
 # Konfiguracja interfejsu serwera
-ip netns exec ns_server ip addr add 192.168.81.10/24 dev ens37
-ip netns exec ns_server ip link set ens37 up
+ip netns exec ns_server ip addr add 192.168.81.10/24 dev $IFACE_SERVER
+ip netns exec ns_server ip link set $IFACE_SERVER up
 
 # Konfiguracja interfejsu klienta Modbus
-ip netns exec ns_client_modbus ip link set ens38 up
+ip netns exec ns_client_modbus ip link set $IFACE_MODBUS up
 
 # Tworzenie pary veth dla klienta S7
 ip link add veth_s7_br type veth peer name veth_s7
 
-# Przeniesienie interfejsów do odpowiednich przestrzeni nazw
+# Przeniesienie interfejsów veth do przestrzeni nazw
 ip link set veth_s7_br netns ns_client_modbus
 ip link set veth_s7 netns ns_client_s7
 
@@ -59,10 +83,10 @@ ip netns exec ns_client_s7 ip link set veth_s7 up
 
 # Tworzenie mostu w ns_client_modbus
 ip netns exec ns_client_modbus brctl addbr br0
-ip netns exec ns_client_modbus brctl addif br0 ens38
+ip netns exec ns_client_modbus brctl addif br0 $IFACE_MODBUS
 ip netns exec ns_client_modbus brctl addif br0 veth_s7_br
 ip netns exec ns_client_modbus ip link set br0 up
-ip netns exec ns_client_modbus ip link set ens38 up
+ip netns exec ns_client_modbus ip link set $IFACE_MODBUS up
 ip netns exec ns_client_modbus ip link set veth_s7_br up
 
 # Przypisanie adresu IP do mostu
@@ -95,7 +119,7 @@ while True:
 " &' &
 echo "Serwer S7 uruchomiony"
 
-# Czekamy chwilę, aby serwery się uruchomiły
+# Czekamy na uruchomienie serwerów
 sleep 5
 
 # Uruchomienie klienta Modbus w ns_client_modbus
@@ -113,6 +137,8 @@ try:
         response = client.read_holding_registers(1, 1)
         print(f\"Modbus Client: Wrote and Read Value {response.registers[0]}\")
         time.sleep(5)
+except Exception as e:
+    print(f\"Modbus Client Error: {e}\")
 finally:
     client.close()
 " &' &
@@ -135,6 +161,8 @@ try:
         read_data = client.db_read(1, 0, 1)
         print(f\"S7 Client: Wrote and Read Value {read_data[0]}\")
         time.sleep(5)
+except Exception as e:
+    print(f\"S7 Client Error: {e}\")
 finally:
     client.disconnect()
 " &' &
