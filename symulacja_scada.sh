@@ -78,7 +78,7 @@ ip link set veth_s7_br netns ns_client_modbus
 ip link set veth_s7 netns ns_client_s7
 
 # Konfiguracja interfejsu klienta S7
-ip netns exec ns_client_s7 ip addr add 192.168.82.20/24 dev veth_s7
+ip netns exec ns_client_s7 ip addr add 192.168.81.30/24 dev veth_s7
 ip netns exec ns_client_s7 ip link set veth_s7 up
 
 # Tworzenie mostu w ns_client_modbus
@@ -90,7 +90,7 @@ ip netns exec ns_client_modbus ip link set $IFACE_MODBUS up
 ip netns exec ns_client_modbus ip link set veth_s7_br up
 
 # Przypisanie adresu IP do mostu
-ip netns exec ns_client_modbus ip addr add 192.168.82.10/24 dev br0
+ip netns exec ns_client_modbus ip addr add 192.168.81.20/24 dev br0
 
 # Uruchomienie serwera Modbus w ns_server
 ip netns exec ns_server bash -c '
@@ -142,7 +142,7 @@ try:
 except Exception as e:
     print(f\"Modbus Client Error: {e}\")
 finally:
-        client.close()
+    client.close()
 " ' &
 
 echo "Klient Modbus uruchomiony"
