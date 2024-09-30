@@ -1,37 +1,12 @@
-pc4-linux@pc4-linux:~$ pip install pymodbus scapy
-/usr/bin/pip:6: DeprecationWarning: pkg_resources is deprecated as an API. See https://setuptools.pypa.io/en/latest/pkg_resources.html
-  from pkg_resources import load_entry_point
-Requirement already satisfied: pymodbus in ./.local/lib/python3.8/site-packages (2.3.0)
-ERROR: Exception:
+pc4-linux@pc4-linux:~/Pobrane$ sudo ./symulacja_scada.py 
+Czyszczenie poprzedniej konfiguracji...
+Most br1 utworzony i włączony.
 Traceback (most recent call last):
-  File "/usr/lib/python3/dist-packages/pip/_internal/cli/base_command.py", line 186, in _main
-    status = self.run(options, args)
-  File "/usr/lib/python3/dist-packages/pip/_internal/commands/install.py", line 357, in run
-    resolver.resolve(requirement_set)
-  File "/usr/lib/python3/dist-packages/pip/_internal/legacy_resolve.py", line 177, in resolve
-    discovered_reqs.extend(self._resolve_one(requirement_set, req))
-  File "/usr/lib/python3/dist-packages/pip/_internal/legacy_resolve.py", line 333, in _resolve_one
-    abstract_dist = self._get_abstract_dist_for(req_to_install)
-  File "/usr/lib/python3/dist-packages/pip/_internal/legacy_resolve.py", line 281, in _get_abstract_dist_for
-    req.populate_link(self.finder, upgrade_allowed, require_hashes)
-  File "/usr/lib/python3/dist-packages/pip/_internal/req/req_install.py", line 249, in populate_link
-    self.link = finder.find_requirement(self, upgrade)
-  File "/usr/lib/python3/dist-packages/pip/_internal/index/package_finder.py", line 898, in find_requirement
-    best_candidate_result = self.find_best_candidate(
-  File "/usr/lib/python3/dist-packages/pip/_internal/index/package_finder.py", line 881, in find_best_candidate
-    candidates = self.find_all_candidates(project_name)
-  File "/usr/lib/python3/dist-packages/pip/_internal/index/package_finder.py", line 825, in find_all_candidates
-    package_links = self.process_project_url(
-  File "/usr/lib/python3/dist-packages/pip/_internal/index/package_finder.py", line 797, in process_project_url
-    package_links = self.evaluate_links(
-  File "/usr/lib/python3/dist-packages/pip/_internal/index/package_finder.py", line 779, in evaluate_links
-    candidate = self.get_install_candidate(link_evaluator, link)
-  File "/usr/lib/python3/dist-packages/pip/_internal/index/package_finder.py", line 764, in get_install_candidate
-    return InstallationCandidate(
-  File "/usr/lib/python3/dist-packages/pip/_internal/models/candidate.py", line 18, in __init__
-    self.version = parse_version(version)  # type: _BaseVersion
-  File "/home/pc4-linux/.local/lib/python3.8/site-packages/setuptools/_vendor/packaging/version.py", line 56, in parse
-    return Version(version)
-  File "/home/pc4-linux/.local/lib/python3.8/site-packages/setuptools/_vendor/packaging/version.py", line 202, in __init__
-    raise InvalidVersion(f"Invalid version: '{version}'")
-packaging.version.InvalidVersion: Invalid version: '2.2.0-dev.linux-x86_64'
+  File "<string>", line 1, in <module>
+ImportError: cannot import name 'run_modbus_server_ns' from '__main__' (unknown location)
+Traceback (most recent call last):
+Traceback (most recent call last):
+  File "<string>", line 1, in <module>
+ImportError: cannot import name 'run_s7_simulation_ns' from '__main__' (unknown location)
+  File "<string>", line 1, in <module>
+ImportError: cannot import name 'run_modbus_client_ns' from '__main__' (unknown location)
