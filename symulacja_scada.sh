@@ -51,10 +51,10 @@ def run_server():
 
     # Inicjalizacja magazynu danych z 2 rejestrami i 2 cewkami
     store = ModbusSlaveContext(
-        di=ModbusSequentialDataBlock(0, [17]*2),
-        co=ModbusSequentialDataBlock(0, [17]*2),
-        hr=ModbusSequentialDataBlock(0, [17]*2),
-        ir=ModbusSequentialDataBlock(0, [17]*2))
+        di=ModbusSequentialDataBlock(0, [17, 18]),  # dwa rejestry input
+        co=ModbusSequentialDataBlock(0, [True, False]),  # dwie cewki
+        hr=ModbusSequentialDataBlock(0, [100, 200]),  # dwa rejestry holding
+        ir=ModbusSequentialDataBlock(0, [10, 20]))  # dwa rejestry input
     context = ModbusServerContext(slaves=store, single=True)
 
     # Uruchomienie serwera Modbus na 192.168.81.2, port 502
@@ -85,27 +85,27 @@ def run_client():
     client.connect()
 
     while True:
-        # Zapis wartości do pierwszej cewki
-        client.write_coil(1, True)
-        log.debug(f"Written coil at 1: True")
+        # Zapis wartości do pierwszej cewki (adres 0)
+        client.write_coil(0, True)
+        log.debug(f"Written coil at 0: True")
 
-        # Zapis wartości do pierwszego rejestru holding
-        client.write_register(1, 100)
-        log.debug(f"Written register at 1: 100")
+        # Zapis wartości do pierwszego rejestru holding (adres 0)
+        client.write_register(0, 100)
+        log.debug(f"Written register at 0: 100")
 
-        # Odczyt cewki
-        rr_coils = client.read_coils(1, 1)
+        # Odczyt cewki (adres 0)
+        rr_coils = client.read_coils(0, 1)
         if rr_coils.isError():
-            log.error(f"Error reading coil at 1")
+            log.error(f"Error reading coil at 0")
         else:
-            log.debug(f"Read coil at 1: {rr_coils.bits[0]}")
+            log.debug(f"Read coil at 0: {rr_coils.bits[0]}")
 
-        # Odczyt rejestru holding
-        rr_regs = client.read_holding_registers(1, 1)
+        # Odczyt rejestru holding (adres 0)
+        rr_regs = client.read_holding_registers(0, 1)
         if rr_regs.isError():
-            log.error(f"Error reading register at 1")
+            log.error(f"Error reading register at 0")
         else:
-            log.debug(f"Read register at 1: {rr_regs.registers[0]}")
+            log.debug(f"Read register at 0: {rr_regs.registers[0]}")
 
         # Odczekaj 1 sekundę
         time.sleep(1)
