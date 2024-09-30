@@ -1,14 +1,20 @@
 pc4-linux@pc4-linux:~/Pobrane$ sudo python3 symulacja_scada.py 
-Cannot find device "veth1"
 Traceback (most recent call last):
-  File "symulacja_scada.py", line 124, in <module>
-    main()
-  File "symulacja_scada.py", line 95, in main
-    setup_network()
-  File "symulacja_scada.py", line 41, in setup_network
-    run_cmd('ip link set veth1 netns ns_client_s7')
-  File "symulacja_scada.py", line 16, in run_cmd
-    subprocess.run(cmd, shell=True, check=True)
-  File "/usr/lib/python3.8/subprocess.py", line 516, in run
-    raise CalledProcessError(retcode, process.args,
-subprocess.CalledProcessError: Command 'ip link set veth1 netns ns_client_s7' returned non-zero exit status 1.
+  File "<string>", line 1, in <module>
+  File "/home/pc4-linux/Pobrane/symulacja_scada.py", line 82, in modbus_client
+    client.write_register(1, value)
+  File "/usr/local/lib/python3.8/dist-packages/pymodbus/client/common.py", line 92, in write_register
+    return self.execute(request)
+  File "/usr/local/lib/python3.8/dist-packages/pymodbus/client/sync.py", line 108, in execute
+    raise ConnectionException("Failed to connect[%s]" % (self.__str__()))
+pymodbus.exceptions.ConnectionException: Modbus Error: [Connection] Failed to connect[ModbusTcpClient(192.168.81.10:502)]
+b' TCP : Network is unreachable'
+Traceback (most recent call last):
+  File "<string>", line 1, in <module>
+  File "/home/pc4-linux/Pobrane/symulacja_scada.py", line 101, in s7_client
+    client.connect('192.168.81.10', 0, 1, 102)
+  File "/usr/local/lib/python3.8/dist-packages/snap7/client/__init__.py", line 24, in f
+    check_error(code, context="client")
+  File "/usr/local/lib/python3.8/dist-packages/snap7/common.py", line 89, in check_error
+    raise RuntimeError(error)
+RuntimeError: b' TCP : Network is unreachable'
