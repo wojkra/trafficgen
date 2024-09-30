@@ -21,10 +21,10 @@ VETH_CLIENT_NS = "veth-client-ns"
 VETH_SERVER_BRIDGE = "veth-server-br"
 VETH_SERVER_NS = "veth-server-ns"
 
-# Adresy IP
-SERVER_IP = "192.168.81.1/24"
-CLIENT_MODBUS_IP = "192.168.82.10/24"
-CLIENT_S7_IP = "192.168.82.20/24"
+# Adresy IP (zmieniono na inny podsieć, aby uniknąć konfliktów)
+SERVER_IP = "10.0.0.1/24"
+CLIENT_MODBUS_IP = "10.0.0.2/24"
+CLIENT_S7_IP = "10.0.0.3/24"
 
 # Porty
 MODBUS_SERVER_PORT = 502  # Możesz zmienić na 1502, jeśli nie chcesz uruchamiać jako root
@@ -132,11 +132,11 @@ def run_modbus_server_ns():
 
 # Funkcja uruchamiająca klienta Modbus
 def run_modbus_client_ns():
-    client = ModbusTcpClient("192.168.81.1", port=MODBUS_SERVER_PORT, source_address=("192.168.82.10", 0))
+    client = ModbusTcpClient("10.0.0.1", port=MODBUS_SERVER_PORT, source_address=("10.0.0.2", 0))
     if not client.connect():
         print("[client_ns] Nie udało się połączyć klienta Modbus z serwerem")
         return
-    print("[client_ns] Klient Modbus połączony z 192.168.81.1:{} z adresu 192.168.82.10".format(MODBUS_SERVER_PORT))
+    print("[client_ns] Klient Modbus połączony z 10.0.0.1:{} z adresu 10.0.0.2".format(MODBUS_SERVER_PORT))
 
     while True:
         # Generowanie losowej wartości między 10 a 20
@@ -162,11 +162,15 @@ def run_modbus_client_ns():
 def run_s7_simulation_ns():
     while True:
         # Tworzenie prostego pakietu S7 (Placeholder)
-        s7_packet = IP(src="192.168.82.20", dst="192.168.81.1")/TCP(sport=random.randint(1000, 50000), dport=S7_SERVER_PORT)/b'\x03\x00\x00\x16\x11\xe0\x00\x00\x00\x08\x00\x01\x02\x01\x00\x00\x00\x00'
+        s7_packet = IP(src="10.0.0.3", dst="10.0.0.1")/TCP(sport=random.randint(1000, 50000), dport=S7_SERVER_PORT)/b'\x03\x00\x00\x16\x11\xe0\x00\x00\x00\x08\x00\x01\x02\x01\x00\x00\x00\x00'
 
         # Wysyłanie pakietu
-        send(s7_packet, verbose=False)
-        print(f"[client_ns] Pakiet S7 wysłany z 192.168.82.20 do 192.168.81.1:{S7_SERVER_PORT}")
+        try:
+            send(s7_packet, verbose=False)
+            print(f"[server_ns] Pakiet S7 wysłany z 10.0.0.3 do 10.0.0.1:{S7_SERVER_PORT}")
+        except OSError as e:
+            print(f"Błąd podczas wysyłania pakietu S7: {e}")
+            cleanup()
 
         time.sleep(5)
 
@@ -225,19 +229,19 @@ def main():
         ))
         server_thread.start()
 
+        # Uruchomienie symulacji S7 w przestrzeni server_ns
+        s7_thread = threading.Thread(target=lambda: subprocess.Popen(
+            f"ip netns exec {SERVER_NS} python3 {script_path} s7",
+            shell=True
+        ))
+        s7_thread.start()
+
         # Uruchomienie klienta Modbus w przestrzeni client_ns
         client_thread = threading.Thread(target=lambda: subprocess.Popen(
             f"ip netns exec {CLIENT_NS} python3 {script_path} client",
             shell=True
         ))
         client_thread.start()
-
-        # Uruchomienie symulacji S7 w przestrzeni client_ns
-        s7_thread = threading.Thread(target=lambda: subprocess.Popen(
-            f"ip netns exec {CLIENT_NS} python3 {script_path} s7",
-            shell=True
-        ))
-        s7_thread.start()
 
         # Utrzymanie głównego wątku aktywnego
         try:
