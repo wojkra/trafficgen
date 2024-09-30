@@ -12,13 +12,13 @@ from pymodbus.client.sync import ModbusTcpClient
 from scapy.all import IP, TCP, send
 
 # Konfiguracja
-BRIDGE_NAME = "br0"
+BRIDGE_NAME = "br1"  # Zmieniona nazwa mostu
 SERVER_NS = "server_ns"
 CLIENT_NS = "client_ns"
-VETH_CLIENT = "veth-client"
-VETH_SERVER = "veth-server"
-VETH_CLIENT_BRIDGE = "br-client"
-VETH_SERVER_BRIDGE = "br-server"
+VETH_CLIENT_BRIDGE = "veth-client-br"
+VETH_CLIENT_NS = "veth-client-ns"
+VETH_SERVER_BRIDGE = "veth-server-br"
+VETH_SERVER_NS = "veth-server-ns"
 
 # Adresy IP
 SERVER_IP = "192.168.81.1/24"
@@ -41,6 +41,17 @@ def run_command(cmd):
         print(e.stderr.decode())
         cleanup()
         sys.exit(1)
+
+# Funkcja do czyszczenia poprzedniej konfiguracji
+def initial_cleanup():
+    print("Czyszczenie poprzedniej konfiguracji...")
+    namespaces = [SERVER_NS, CLIENT_NS]
+    for ns in namespaces:
+        run_command(f"ip netns delete {ns} || true")
+    interfaces = [VETH_CLIENT_BRIDGE, VETH_CLIENT_NS, VETH_SERVER_BRIDGE, VETH_SERVER_NS]
+    for iface in interfaces:
+        run_command(f"ip link delete {iface} || true")
+    run_command(f"ip link delete {BRIDGE_NAME} || true")
 
 # Funkcja do tworzenia przestrzeni nazw
 def create_namespace(ns_name):
@@ -70,7 +81,10 @@ def set_interface_up_global(interface):
 # Funkcja do tworzenia mostu
 def create_bridge(bridge_name):
     run_command(f"ip link add name {bridge_name} type bridge")
-    run_command(f"ip link set {bridge_name} up")
+
+# Funkcja do usuwania mostu
+def delete_bridge(bridge_name):
+    run_command(f"ip link delete {bridge_name} || true")
 
 # Funkcja do dodawania interfejsów do mostu
 def add_to_bridge(bridge_name, interface):
@@ -87,7 +101,7 @@ def cleanup():
     delete_namespace(CLIENT_NS)
     run_command(f"ip link delete {VETH_CLIENT_BRIDGE} || true")
     run_command(f"ip link delete {VETH_SERVER_BRIDGE} || true")
-    run_command(f"ip link delete {BRIDGE_NAME} || true")
+    delete_bridge(BRIDGE_NAME)
     sys.exit(0)
 
 # Obsługa sygnałów dla czyszczenia
@@ -111,8 +125,9 @@ def run_modbus_server_ns():
     identity.ModelName = 'Modbus Server'
     identity.MajorMinorRevision = '1.0'
 
-    print(f"[server_ns] Uruchamianie serwera Modbus na {SERVER_IP.split('/')[0]}:{MODBUS_SERVER_PORT}")
-    StartTcpServer(context, identity=identity, address=(SERVER_IP.split('/')[0], MODBUS_SERVER_PORT))
+    server_ip = SERVER_IP.split('/')[0]
+    print(f"[server_ns] Uruchamianie serwera Modbus na {server_ip}:{MODBUS_SERVER_PORT}")
+    StartTcpServer(context, identity=identity, address=(server_ip, MODBUS_SERVER_PORT))
 
 # Funkcja uruchamiająca klienta Modbus
 def run_modbus_client_ns():
@@ -156,27 +171,31 @@ def run_s7_simulation_ns():
 
 # Główna funkcja konfigurująca sieć i uruchamiająca serwer oraz klienta
 def main():
+    # Czyszczenie poprzedniej konfiguracji
+    initial_cleanup()
+
     # Tworzenie mostu
     create_bridge(BRIDGE_NAME)
+    run_command(f"ip link set {BRIDGE_NAME} up")
+    print(f"Most {BRIDGE_NAME} utworzony i włączony.")
 
     # Tworzenie przestrzeni nazw
     create_namespace(SERVER_NS)
     create_namespace(CLIENT_NS)
 
-    # Tworzenie par veth
-    # Dla klienta
-    create_veth(VETH_CLIENT_BRIDGE, VETH_CLIENT)
-    set_veth_namespace(VETH_CLIENT, CLIENT_NS)
-    setup_interface(CLIENT_NS, VETH_CLIENT, CLIENT_MODBUS_IP)
-    setup_interface(CLIENT_NS, VETH_CLIENT, CLIENT_S7_IP)  # Dodanie aliasu IP
-    run_command(f"ip link set {VETH_CLIENT_BRIDGE} up")
+    # Tworzenie par veth dla klienta
+    create_veth(VETH_CLIENT_BRIDGE, VETH_CLIENT_NS)
+    set_veth_namespace(VETH_CLIENT_NS, CLIENT_NS)
+    setup_interface(CLIENT_NS, VETH_CLIENT_NS, CLIENT_MODBUS_IP)
+    setup_interface(CLIENT_NS, VETH_CLIENT_NS, CLIENT_S7_IP)
+    set_interface_up_global(VETH_CLIENT_BRIDGE)
     add_to_bridge(BRIDGE_NAME, VETH_CLIENT_BRIDGE)
 
-    # Dla serwera
-    create_veth(VETH_SERVER_BRIDGE, VETH_SERVER)
-    set_veth_namespace(VETH_SERVER, SERVER_NS)
-    setup_interface(SERVER_NS, VETH_SERVER, SERVER_IP)
-    run_command(f"ip link set {VETH_SERVER_BRIDGE} up")
+    # Tworzenie par veth dla serwera
+    create_veth(VETH_SERVER_BRIDGE, VETH_SERVER_NS)
+    set_veth_namespace(VETH_SERVER_NS, SERVER_NS)
+    setup_interface(SERVER_NS, VETH_SERVER_NS, SERVER_IP)
+    set_interface_up_global(VETH_SERVER_BRIDGE)
     add_to_bridge(BRIDGE_NAME, VETH_SERVER_BRIDGE)
 
     # Konfiguracja trasowania
