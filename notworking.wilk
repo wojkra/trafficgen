@@ -1,12 +1,17 @@
-pc4-linux@pc4-linux:~/Pobrane$ sudo ./symulacja_scada.py 
-Czyszczenie poprzedniej konfiguracji...
 Most br1 utworzony i włączony.
+[server_ns] Uruchamianie serwera Modbus na 192.168.81.1:502
+[client_ns] Nie udało się połączyć klienta Modbus z serwerem
 Traceback (most recent call last):
-  File "<string>", line 1, in <module>
-ImportError: cannot import name 'run_modbus_server_ns' from '__main__' (unknown location)
-Traceback (most recent call last):
-Traceback (most recent call last):
-  File "<string>", line 1, in <module>
-ImportError: cannot import name 'run_s7_simulation_ns' from '__main__' (unknown location)
-  File "<string>", line 1, in <module>
-ImportError: cannot import name 'run_modbus_client_ns' from '__main__' (unknown location)
+  File "/home/pc4-linux/Pobrane/symulacja_scada.py", line 250, in <module>
+    main()
+  File "/home/pc4-linux/Pobrane/symulacja_scada.py", line 181, in main
+    run_s7_simulation_ns()
+  File "/home/pc4-linux/Pobrane/symulacja_scada.py", line 168, in run_s7_simulation_ns
+    send(s7_packet, verbose=False)
+  File "/usr/lib/python3/dist-packages/scapy/sendrecv.py", line 317, in send
+    results = __gen_send(socket, x, inter=inter, loop=loop,
+  File "/usr/lib/python3/dist-packages/scapy/sendrecv.py", line 291, in __gen_send
+    s.send(p)
+  File "/usr/lib/python3/dist-packages/scapy/arch/linux.py", line 600, in send
+    self.outs.sendto(sx, sdto)
+OSError: [Errno 100] Network is down
