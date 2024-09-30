@@ -1,17 +1,14 @@
-Most br1 utworzony i włączony.
-[server_ns] Uruchamianie serwera Modbus na 192.168.81.1:502
-[client_ns] Nie udało się połączyć klienta Modbus z serwerem
+pc4-linux@pc4-linux:~/Pobrane$ sudo python3 symulacja_scada.py 
+Cannot find device "veth1"
 Traceback (most recent call last):
-  File "/home/pc4-linux/Pobrane/symulacja_scada.py", line 250, in <module>
+  File "symulacja_scada.py", line 124, in <module>
     main()
-  File "/home/pc4-linux/Pobrane/symulacja_scada.py", line 181, in main
-    run_s7_simulation_ns()
-  File "/home/pc4-linux/Pobrane/symulacja_scada.py", line 168, in run_s7_simulation_ns
-    send(s7_packet, verbose=False)
-  File "/usr/lib/python3/dist-packages/scapy/sendrecv.py", line 317, in send
-    results = __gen_send(socket, x, inter=inter, loop=loop,
-  File "/usr/lib/python3/dist-packages/scapy/sendrecv.py", line 291, in __gen_send
-    s.send(p)
-  File "/usr/lib/python3/dist-packages/scapy/arch/linux.py", line 600, in send
-    self.outs.sendto(sx, sdto)
-OSError: [Errno 100] Network is down
+  File "symulacja_scada.py", line 95, in main
+    setup_network()
+  File "symulacja_scada.py", line 41, in setup_network
+    run_cmd('ip link set veth1 netns ns_client_s7')
+  File "symulacja_scada.py", line 16, in run_cmd
+    subprocess.run(cmd, shell=True, check=True)
+  File "/usr/lib/python3.8/subprocess.py", line 516, in run
+    raise CalledProcessError(retcode, process.args,
+subprocess.CalledProcessError: Command 'ip link set veth1 netns ns_client_s7' returned non-zero exit status 1.
