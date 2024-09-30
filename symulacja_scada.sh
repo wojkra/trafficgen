@@ -1,176 +1,255 @@
 #!/bin/bash
-set -x
-set +e
 
-function cleanup {
-    echo "Czyszczenie konfiguracji..."
-    # Zabij procesy w przestrzeniach nazw
-    ip netns pids ns_server | xargs -r kill -9
-    ip netns pids ns_client_modbus | xargs -r kill -9
-    ip netns pids ns_client_s7 | xargs -r kill -9
-
-    # Przywróć interfejsy fizyczne do domyślnej przestrzeni nazw
-    if ip netns exec ns_server ip link show $IFACE_SERVER &>/dev/null; then
-        ip netns exec ns_server ip link set $IFACE_SERVER netns 1
-        ip link set $IFACE_SERVER up
-        ip addr flush dev $IFACE_SERVER
-    fi
-
-    if ip netns exec ns_client_modbus ip link show $IFACE_MODBUS &>/dev/null; then
-        ip netns exec ns_client_modbus ip link set $IFACE_MODBUS netns 1
-        ip link set $IFACE_MODBUS up
-        ip addr flush dev $IFACE_MODBUS
-    fi
-
-    # Usuń most i interfejsy veth
-    ip netns exec ns_client_modbus ip link set br0 down
-    ip netns exec ns_client_modbus brctl delbr br0
-
-    ip link delete veth_s7_br type veth
-    ip link delete veth_s7 type veth
-
-    # Usuń przestrzenie nazw
-    ip netns delete ns_server
-    ip netns delete ns_client_modbus
-    ip netns delete ns_client_s7
-
-    echo "Konfiguracja wyczyszczona."
-}
-
-trap cleanup EXIT
-
-# Ustaw nazwy interfejsów
-IFACE_SERVER="ens37"      # Zmień na nazwę interfejsu serwera
-IFACE_MODBUS="ens38"      # Zmień na nazwę interfejsu klienta Modbus
-
-# Sprawdź, czy interfejsy istnieją
-if ! ip link show $IFACE_SERVER &>/dev/null; then
-    echo "Błąd: Interfejs $IFACE_SERVER nie istnieje."
-    exit 1
+# Upewnij się, że skrypt jest uruchamiany z uprawnieniami root
+if [ "$EUID" -ne 0 ]; then
+  echo "Proszę uruchomić skrypt jako root (sudo)."
+  exit 1
 fi
 
-if ! ip link show $IFACE_MODBUS &>/dev/null; then
-    echo "Błąd: Interfejs $IFACE_MODBUS nie istnieje."
-    exit 1
-fi
+echo "Konfiguracja przestrzeni nazw sieciowych i interfejsów..."
 
-# Tworzenie przestrzeni nazw
-ip netns add ns_server
-ip netns add ns_client_modbus
-ip netns add ns_client_s7
+# 1. Stworzenie trzech przestrzeni nazw sieciowych
+ip netns add ns1       # Modbus Client
+ip netns add ns2       # Modbus Server & S7 Server
+ip netns add ns3       # S7 Client
 
-# Przeniesienie interfejsów fizycznych do przestrzeni nazw
-ip link set $IFACE_SERVER netns ns_server
-ip link set $IFACE_MODBUS netns ns_client_modbus
+# 2. Przeniesienie interfejsów fizycznych do odpowiednich przestrzeni nazw
+ip link set ens37 netns ns1
+ip link set ens38 netns ns2
+ip link set ens39 netns ns3   # Upewnij się, że masz interfejs ens39
 
-# Konfiguracja interfejsu serwera
-ip netns exec ns_server ip addr add 192.168.81.10/24 dev $IFACE_SERVER
-ip netns exec ns_server ip link set $IFACE_SERVER up
+# 3. Konfiguracja interfejsu w przestrzeni nazw ns1 (ens37)
+ip netns exec ns1 ip addr flush dev ens37
+ip netns exec ns1 ip addr add 192.168.81.1/24 dev ens37
+ip netns exec ns1 ip link set ens37 up
+ip netns exec ns1 ip link set lo up
 
-# Konfiguracja interfejsu klienta Modbus
-ip netns exec ns_client_modbus ip link set $IFACE_MODBUS up
+# 4. Konfiguracja interfejsu w przestrzeni nazw ns2 (ens38)
+ip netns exec ns2 ip addr flush dev ens38
+ip netns exec ns2 ip addr add 192.168.81.2/24 dev ens38
+ip netns exec ns2 ip link set ens38 up
+ip netns exec ns2 ip link set lo up
 
-# Tworzenie pary veth dla klienta S7
-ip link add veth_s7_br type veth peer name veth_s7
+# 5. Konfiguracja interfejsu w przestrzeni nazw ns3 (ens39)
+ip netns exec ns3 ip addr flush dev ens39
+ip netns exec ns3 ip addr add 192.168.81.3/24 dev ens39
+ip netns exec ns3 ip link set ens39 up
+ip netns exec ns3 ip link set lo up
 
-# Przeniesienie interfejsów veth do przestrzeni nazw
-ip link set veth_s7_br netns ns_client_modbus
-ip link set veth_s7 netns ns_client_s7
+# 6. Sprawdzenie połączenia między przestrzeniami nazw
+echo "Sprawdzanie połączenia między ns1, ns2 i ns3..."
+ip netns exec ns1 ping -c 2 192.168.81.2
+ip netns exec ns1 ping -c 2 192.168.81.3
+ip netns exec ns3 ping -c 2 192.168.81.2
 
-# Konfiguracja interfejsu klienta S7
-ip netns exec ns_client_s7 ip addr add 192.168.81.30/24 dev veth_s7
-ip netns exec ns_client_s7 ip link set veth_s7 up
+# 7. Tworzenie skryptu Modbus server w ns2
+echo "Tworzenie skryptu Modbus server..."
+ip netns exec ns2 bash -c 'cat > modbus_server.py << EOF
+#!/usr/bin/env python3
 
-# Tworzenie mostu w ns_client_modbus
-ip netns exec ns_client_modbus brctl addbr br0
-ip netns exec ns_client_modbus brctl addif br0 $IFACE_MODBUS
-ip netns exec ns_client_modbus brctl addif br0 veth_s7_br
-ip netns exec ns_client_modbus ip link set br0 up
-ip netns exec ns_client_modbus ip link set $IFACE_MODBUS up
-ip netns exec ns_client_modbus ip link set veth_s7_br up
-
-# Przypisanie adresu IP do mostu
-ip netns exec ns_client_modbus ip addr add 192.168.81.20/24 dev br0
-
-# Uruchomienie serwera Modbus w ns_server
-ip netns exec ns_server bash -c '
-python3 -c "
 from pymodbus.server.sync import StartTcpServer
-from pymodbus.datastore import ModbusSlaveContext, ModbusServerContext, ModbusSequentialDataBlock
-store = ModbusSlaveContext(
-    di=ModbusSequentialDataBlock(0, [17]*100),
-    co=ModbusSequentialDataBlock(0, [17]*100),
-    hr=ModbusSequentialDataBlock(0, [17]*100),
-    ir=ModbusSequentialDataBlock(0, [17]*100))
-context = ModbusServerContext(slaves=store, single=True)
-StartTcpServer(context, address=(\"192.168.81.10\", 502))
-" ' &
+from pymodbus.datastore import ModbusSlaveContext, ModbusServerContext
+from pymodbus.datastore import ModbusSequentialDataBlock
+import logging
+import sys
 
-echo "Serwer Modbus uruchomiony"
+def run_server():
+    # Konfiguracja logowania
+    logging.basicConfig(stream=sys.stdout)
+    log = logging.getLogger()
+    log.setLevel(logging.INFO)
 
-# Uruchomienie serwera S7 w ns_server
-ip netns exec ns_server bash -c '
-python3 -c "
-import time
-from snap7.server import Server as S7Server
-server = S7Server()
-server.start(tcpport=102)
-while True:
-    time.sleep(1)
-" ' &
+    # Inicjalizacja magazynu danych
+    store = ModbusSlaveContext(
+        di=ModbusSequentialDataBlock(0, [17]*100),
+        co=ModbusSequentialDataBlock(0, [17]*100),
+        hr=ModbusSequentialDataBlock(0, [17]*100),
+        ir=ModbusSequentialDataBlock(0, [17]*100))
+    context = ModbusServerContext(slaves=store, single=True)
 
-echo "Serwer S7 uruchomiony"
+    # Uruchomienie serwera Modbus na 192.168.81.2, port 502
+    StartTcpServer(context, address=("192.168.81.2", 502))
 
-# Czekamy na uruchomienie serwerów
-sleep 5
+if __name__ == "__main__":
+    run_server()
+EOF'
 
-# Uruchomienie klienta Modbus w ns_client_modbus
-ip netns exec ns_client_modbus bash -c '
-python3 -c "
-import random
-import time
+# 8. Tworzenie skryptu Modbus client w ns1
+echo "Tworzenie skryptu Modbus client..."
+ip netns exec ns1 bash -c 'cat > modbus_client.py << EOF
+#!/usr/bin/env python3
+
 from pymodbus.client.sync import ModbusTcpClient
-client = ModbusTcpClient(\"192.168.81.10\", port=502)
-client.connect()
-try:
+import random
+import time
+import logging
+import sys
+
+def run_client():
+    # Konfiguracja logowania
+    logging.basicConfig(stream=sys.stdout)
+    log = logging.getLogger()
+    log.setLevel(logging.INFO)
+
+    # Połączenie z serwerem Modbus na 192.168.81.2, port 502
+    client = ModbusTcpClient("192.168.81.2", port=502)
+    client.connect()
+
     while True:
-        value = random.randint(10, 20)
-        client.write_register(1, value)
-        response = client.read_holding_registers(1, 1)
-        print(f\"Modbus Client: Wrote and Read Value {response.registers[0]}\")
-        time.sleep(5)
-except Exception as e:
-    print(f\"Modbus Client Error: {e}\")
-finally:
+        # Generowanie losowych wartości
+        coil_addr = random.randint(1, 10)
+        coil_value = random.randint(0, 1)
+        reg_addr = random.randint(1, 10)
+        register_value = random.randint(0, 100)
+
+        # Zapis losowej wartości do cewki
+        client.write_coil(coil_addr, coil_value)
+        log.info(f"Written coil at {coil_addr}: {coil_value}")
+
+        # Zapis losowej wartości do rejestru holding
+        client.write_register(reg_addr, register_value)
+        log.info(f"Written register at {reg_addr}: {register_value}")
+
+        # Odczyt cewek
+        rr_coils = client.read_coils(coil_addr, 1)
+        if rr_coils.isError():
+            log.error(f"Error reading coils at {coil_addr}")
+        else:
+            log.info(f"Read coil at {coil_addr}: {rr_coils.bits}")
+
+        # Odczyt rejestrów holding
+        rr_regs = client.read_holding_registers(reg_addr, 1)
+        if rr_regs.isError():
+            log.error(f"Error reading registers at {reg_addr}")
+        else:
+            log.info(f"Read register at {reg_addr}: {rr_regs.registers}")
+
+        # Odczekaj 1 sekundę
+        time.sleep(1)
+
     client.close()
-" ' &
 
-echo "Klient Modbus uruchomiony"
+if __name__ == "__main__":
+    run_client()
+EOF'
 
-# Uruchomienie klienta S7 w ns_client_s7
-ip netns exec ns_client_s7 bash -c '
-python3 -c "
+# 9. Tworzenie skryptu S7 server w ns2
+echo "Tworzenie skryptu S7 server..."
+ip netns exec ns2 bash -c 'cat > s7_server.py << EOF
+#!/usr/bin/env python3
+
+import snap7
+from snap7.server import Server
+from snap7.util import *
+import struct
+import time
+import logging
+import sys
+
+def run_server():
+    # Konfiguracja logowania
+    logging.basicConfig(stream=sys.stdout)
+    log = logging.getLogger()
+    log.setLevel(logging.INFO)
+
+    server = Server()
+    db = (ctypes.c_uint8 * 1024)()
+    server.register_area(snap7.types.srvAreaDB, 1, db)
+    server.start(tcpport=102)
+
+    log.info("S7 Server started on 192.168.81.2:102")
+
+    try:
+        while True:
+            time.sleep(1)
+    except KeyboardInterrupt:
+        log.info("Stopping S7 Server...")
+        server.stop()
+        server.destroy()
+
+if __name__ == "__main__":
+    run_server()
+EOF'
+
+# 10. Tworzenie skryptu S7 client w ns3
+echo "Tworzenie skryptu S7 client..."
+ip netns exec ns3 bash -c 'cat > s7_client.py << EOF
+#!/usr/bin/env python3
+
+import snap7
+from snap7.client import Client
+from snap7.util import *
 import time
 import random
-from snap7.client import Client as S7Client
-client = S7Client()
-client.connect(\"192.168.81.10\", 0, 1, 102)
-data = bytearray([0]*10)
-try:
-    while True:
-        value = random.randint(10, 20)
-        data[0] = value
-        client.db_write(1, 0, data)
-        read_data = client.db_read(1, 0, 1)
-        print(f\"S7 Client: Wrote and Read Value {read_data[0]}\")
-        time.sleep(5)
-except Exception as e:
-    print(f\"S7 Client Error: {e}\")
-finally:
-    client.disconnect()
-" ' &
+import logging
+import sys
 
-echo "Klient S7 uruchomiony"
+def run_client():
+    # Konfiguracja logowania
+    logging.basicConfig(stream=sys.stdout)
+    log = logging.getLogger()
+    log.setLevel(logging.INFO)
 
-# Utrzymanie skryptu aktywnego
-wait
+    client = Client()
+    client.connect("192.168.81.2", 0, 1, 102)
+
+    log.info("Connected to S7 Server at 192.168.81.2:102")
+
+    db_number = 1
+    start = 0
+    size = 10
+
+    try:
+        while True:
+            data_to_write = bytearray(random.getrandbits(8) for _ in range(size))
+            client.db_write(db_number, start, data_to_write)
+            log.info(f"Written to DB{db_number}: {list(data_to_write)}")
+
+            data_read = client.db_read(db_number, start, size)
+            log.info(f"Read from DB{db_number}: {list(data_read)}")
+
+            time.sleep(1)
+    except KeyboardInterrupt:
+        log.info("Stopping S7 Client...")
+    finally:
+        client.disconnect()
+
+if __name__ == "__main__":
+    run_client()
+EOF'
+
+# 11. Instalacja zależności w przestrzeniach nazw (jeśli nie są zainstalowane)
+echo "Instalacja zależności Pythona (pymodbus, python-snap7)..."
+ip netns exec ns1 bash -c 'pip3 install pymodbus'
+ip netns exec ns2 bash -c 'pip3 install pymodbus python-snap7'
+ip netns exec ns3 bash -c 'pip3 install python-snap7'
+
+# 12. Uruchomienie serwera Modbus w ns2
+echo "Uruchamianie serwera Modbus w ns2..."
+ip netns exec ns2 bash -c 'python3 modbus_server.py &' &
+
+# 13. Uruchomienie klienta Modbus w ns1
+echo "Uruchamianie klienta Modbus w ns1..."
+ip netns exec ns1 bash -c 'python3 modbus_client.py &' &
+
+# 14. Uruchomienie serwera S7 w ns2
+echo "Uruchamianie serwera S7 w ns2..."
+ip netns exec ns2 bash -c 'python3 s7_server.py &' &
+
+# 15. Uruchomienie klienta S7 w ns3
+echo "Uruchamianie klienta S7 w ns3..."
+ip netns exec ns3 bash -c 'python3 s7_client.py &' &
+
+echo "Symulacja Modbus i S7 jest uruchomiona."
+echo "Aby zatrzymać symulację, użyj poleceń 'pkill -f modbus_server.py', 'pkill -f modbus_client.py', 'pkill -f s7_server.py' i 'pkill -f s7_client.py' w odpowiednich przestrzeniach nazw."
+
+# 16. Opcjonalne: Monitorowanie ruchu na interfejsach
+echo ""
+echo "Aby monitorować ruch na interfejsie ens37 w ns1 (Modbus Client), użyj:"
+echo "sudo ip netns exec ns1 tcpdump -i ens37 port 502 -nn -X"
+echo ""
+echo "Aby monitorować ruch na interfejsie ens38 w ns2 (Modbus & S7 Server), użyj:"
+echo "sudo ip netns exec ns2 tcpdump -i ens38 'port 502 or port 102' -nn -X"
+echo ""
+echo "Aby monitorować ruch na interfejsie ens39 w ns3 (S7 Client), użyj:"
+echo "sudo ip netns exec ns3 tcpdump -i ens39 port 102 -nn -X"
