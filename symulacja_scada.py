@@ -1,254 +1,124 @@
 #!/usr/bin/env python3
+
 import subprocess
 import threading
-import time
 import random
-import signal
-import sys
+import time
 from pymodbus.server.sync import StartTcpServer
-from pymodbus.device import ModbusDeviceIdentification
-from pymodbus.datastore import ModbusSequentialDataBlock, ModbusSlaveContext, ModbusServerContext
 from pymodbus.client.sync import ModbusTcpClient
-from scapy.all import IP, TCP, send
-import os
+from pymodbus.datastore import ModbusSequentialDataBlock, ModbusSlaveContext, ModbusServerContext
+import snap7
+from snap7.server import Server as S7Server
+from snap7.client import Client as S7Client
 
-# Konfiguracja
-BRIDGE_NAME = "br1"  # Zmieniona nazwa mostu
-SERVER_NS = "server_ns"
-CLIENT_NS = "client_ns"
-VETH_CLIENT_BRIDGE = "veth-client-br"
-VETH_CLIENT_NS = "veth-client-ns"
-VETH_SERVER_BRIDGE = "veth-server-br"
-VETH_SERVER_NS = "veth-server-ns"
+# Funkcje pomocnicze do wykonywania poleceń systemowych
+def run_cmd(cmd):
+    subprocess.run(cmd, shell=True, check=True)
 
-# Adresy IP (zmieniono na inny podsieć, aby uniknąć konfliktów)
-SERVER_IP = "10.0.0.1/24"
-CLIENT_MODBUS_IP = "10.0.0.2/24"
-CLIENT_S7_IP = "10.0.0.3/24"
+# Konfiguracja przestrzeni nazw i interfejsów sieciowych
+def setup_network():
+    # Tworzenie przestrzeni nazw
+    run_cmd('ip netns add ns_server')
+    run_cmd('ip netns add ns_client_modbus')
+    run_cmd('ip netns add ns_client_s7')
 
-# Porty
-MODBUS_SERVER_PORT = 502  # Możesz zmienić na 1502, jeśli nie chcesz uruchamiać jako root
-S7_SERVER_PORT = 102
+    # Przeniesienie interfejsów do przestrzeni nazw
+    run_cmd('ip link set ens37 netns ns_server')
+    run_cmd('ip link set ens38 netns ns_client_modbus')
 
-# Rejestr Modbus
-REGISTER_ADDRESS = 100
+    # Konfiguracja adresów IP
+    run_cmd('ip netns exec ns_server ip addr add 192.168.81.1/24 dev ens37')
+    run_cmd('ip netns exec ns_server ip link set ens37 up')
 
-# Funkcja do uruchamiania poleceń systemowych
-def run_command(cmd):
-    try:
-        subprocess.run(cmd, check=True, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-    except subprocess.CalledProcessError as e:
-        print(f"Błąd podczas wykonywania polecenia: {cmd}")
-        print(e.stderr.decode())
-        cleanup()
-        sys.exit(1)
+    run_cmd('ip netns exec ns_client_modbus ip addr add 192.168.82.1/24 dev ens38')
+    run_cmd('ip netns exec ns_client_modbus ip link set ens38 up')
 
-# Funkcja do czyszczenia poprzedniej konfiguracji
-def initial_cleanup():
-    print("Czyszczenie poprzedniej konfiguracji...")
-    namespaces = [SERVER_NS, CLIENT_NS]
-    for ns in namespaces:
-        run_command(f"ip netns delete {ns} || true")
-    interfaces = [VETH_CLIENT_BRIDGE, VETH_CLIENT_NS, VETH_SERVER_BRIDGE, VETH_SERVER_NS]
-    for iface in interfaces:
-        run_command(f"ip link delete {iface} || true")
-    run_command(f"ip link delete {BRIDGE_NAME} || true")
+    # Dodanie tras (jeśli konieczne)
+    # run_cmd('ip netns exec ns_client_modbus ip route add default via 192.168.81.1')
 
-# Funkcja do tworzenia przestrzeni nazw
-def create_namespace(ns_name):
-    run_command(f"ip netns add {ns_name}")
+    # Konfiguracja dla klienta S7 (użyjemy wirtualnego interfejsu)
+    run_cmd('ip netns exec ns_client_modbus ip link add veth0 type veth peer name veth1')
+    run_cmd('ip link set veth1 netns ns_client_s7')
+    run_cmd('ip netns exec ns_client_modbus ip addr add 192.168.82.2/24 dev veth0')
+    run_cmd('ip netns exec ns_client_modbus ip link set veth0 up')
+    run_cmd('ip netns exec ns_client_s7 ip addr add 192.168.83.1/24 dev veth1')
+    run_cmd('ip netns exec ns_client_s7 ip link set veth1 up')
 
-# Funkcja do usuwania przestrzeni nazw
-def delete_namespace(ns_name):
-    run_command(f"ip netns delete {ns_name}")
-
-# Funkcja do tworzenia par veth
-def create_veth(veth1, veth2):
-    run_command(f"ip link add {veth1} type veth peer name {veth2}")
-
-# Funkcja do przypisywania veth do przestrzeni nazw
-def set_veth_namespace(veth, ns_name):
-    run_command(f"ip link set {veth} netns {ns_name}")
-
-# Funkcja do ustawiania adresów IP i włączania interfejsów
-def setup_interface(ns_name, interface, ip_address):
-    run_command(f"ip netns exec {ns_name} ip addr add {ip_address} dev {interface}")
-    run_command(f"ip netns exec {ns_name} ip link set {interface} up")
-
-# Funkcja do włączania interfejsów veth w mostu
-def set_interface_up_global(interface):
-    run_command(f"ip link set {interface} up")
-
-# Funkcja do tworzenia mostu
-def create_bridge(bridge_name):
-    run_command(f"ip link add name {bridge_name} type bridge")
-
-# Funkcja do usuwania mostu
-def delete_bridge(bridge_name):
-    run_command(f"ip link delete {bridge_name} || true")
-
-# Funkcja do dodawania interfejsów do mostu
-def add_to_bridge(bridge_name, interface):
-    run_command(f"ip link set {interface} master {bridge_name}")
-
-# Funkcja do konfiguracji trasowania
-def setup_routing():
-    run_command("sysctl -w net.ipv4.ip_forward=1")
-
-# Funkcja do czyszczenia konfiguracji
-def cleanup():
-    print("Czyszczenie konfiguracji...")
-    delete_namespace(SERVER_NS)
-    delete_namespace(CLIENT_NS)
-    run_command(f"ip link delete {VETH_CLIENT_BRIDGE} || true")
-    run_command(f"ip link delete {VETH_SERVER_BRIDGE} || true")
-    delete_bridge(BRIDGE_NAME)
-    sys.exit(0)
-
-# Obsługa sygnałów dla czyszczenia
-signal.signal(signal.SIGINT, lambda sig, frame: cleanup())
-signal.signal(signal.SIGTERM, lambda sig, frame: cleanup())
-
-# Funkcja uruchamiająca serwer Modbus
-def run_modbus_server_ns():
-    # Inicjalizacja datastore
+# Funkcje serwera i klienta Modbus
+def modbus_server():
     store = ModbusSlaveContext(
-        hr=ModbusSequentialDataBlock(0, [0]*1000)
-    )
+        di=ModbusSequentialDataBlock(0, [17]*100),
+        co=ModbusSequentialDataBlock(0, [17]*100),
+        hr=ModbusSequentialDataBlock(0, [17]*100),
+        ir=ModbusSequentialDataBlock(0, [17]*100))
     context = ModbusServerContext(slaves=store, single=True)
+    identity = None  # Możesz skonfigurować identyfikację serwera
+    StartTcpServer(context, identity=identity, address=("192.168.81.1", 502))
 
-    # Tożsamość Serwera
-    identity = ModbusDeviceIdentification()
-    identity.VendorName = 'OpenAI'
-    identity.ProductCode = 'SCADA_SIM'
-    identity.VendorUrl = 'http://openai.com'
-    identity.ProductName = 'SCADA Modbus Server'
-    identity.ModelName = 'Modbus Server'
-    identity.MajorMinorRevision = '1.0'
+def modbus_client():
+    client = ModbusTcpClient('192.168.81.1', port=502)
+    client.connect()
+    try:
+        while True:
+            value = random.randint(10, 20)
+            client.write_register(1, value)
+            response = client.read_holding_registers(1, 1)
+            print(f"Modbus Client: Wrote and Read Value {response.registers[0]}")
+            time.sleep(5)
+    finally:
+        client.close()
 
-    server_ip = SERVER_IP.split('/')[0]
-    print(f"[server_ns] Uruchamianie serwera Modbus na {server_ip}:{MODBUS_SERVER_PORT}")
-    StartTcpServer(context, identity=identity, address=(server_ip, MODBUS_SERVER_PORT))
-
-# Funkcja uruchamiająca klienta Modbus
-def run_modbus_client_ns():
-    client = ModbusTcpClient("10.0.0.1", port=MODBUS_SERVER_PORT, source_address=("10.0.0.2", 0))
-    if not client.connect():
-        print("[client_ns] Nie udało się połączyć klienta Modbus z serwerem")
-        return
-    print("[client_ns] Klient Modbus połączony z 10.0.0.1:{} z adresu 10.0.0.2".format(MODBUS_SERVER_PORT))
-
+# Funkcje serwera i klienta S7
+def s7_server():
+    server = S7Server()
+    server.start(tcpport=102)
     while True:
-        # Generowanie losowej wartości między 10 a 20
-        value = random.randint(10, 20)
-        # Zapis rejestru
-        write = client.write_register(REGISTER_ADDRESS, value, unit=1)
-        if write.isError():
-            print(f"[client_ns] Błąd zapisu Modbus: {write}")
-        else:
-            print(f"[client_ns] Modbus Zapis: Rejestr {REGISTER_ADDRESS} ustawiony na {value}")
+        time.sleep(1)
 
-        # Odczyt rejestru
-        read = client.read_holding_registers(REGISTER_ADDRESS, 1, unit=1)
-        if read.isError():
-            print(f"[client_ns] Błąd odczytu Modbus: {read}")
-        else:
-            read_value = read.registers[0]
-            print(f"[client_ns] Modbus Odczyt: Rejestr {REGISTER_ADDRESS} ma wartość {read_value}")
+def s7_client():
+    client = S7Client()
+    client.connect('192.168.81.1', 0, 1, 102)
+    data = bytearray([0]*10)
+    try:
+        while True:
+            value = random.randint(10, 20)
+            data[0] = value
+            client.db_write(1, 0, data)
+            read_data = client.db_read(1, 0, 1)
+            print(f"S7 Client: Wrote and Read Value {read_data[0]}")
+            time.sleep(5)
+    finally:
+        client.disconnect()
 
-        time.sleep(5)
-
-# Funkcja uruchamiająca symulację S7
-def run_s7_simulation_ns():
-    while True:
-        # Tworzenie prostego pakietu S7 (Placeholder)
-        s7_packet = IP(src="10.0.0.3", dst="10.0.0.1")/TCP(sport=random.randint(1000, 50000), dport=S7_SERVER_PORT)/b'\x03\x00\x00\x16\x11\xe0\x00\x00\x00\x08\x00\x01\x02\x01\x00\x00\x00\x00'
-
-        # Wysyłanie pakietu
-        try:
-            send(s7_packet, verbose=False)
-            print(f"[server_ns] Pakiet S7 wysłany z 10.0.0.3 do 10.0.0.1:{S7_SERVER_PORT}")
-        except OSError as e:
-            print(f"Błąd podczas wysyłania pakietu S7: {e}")
-            cleanup()
-
-        time.sleep(5)
-
-# Główna funkcja konfigurująca sieć i uruchamiająca serwer oraz klienta
+# Funkcja główna
 def main():
-    if len(sys.argv) > 1:
-        if sys.argv[1] == "server":
-            run_modbus_server_ns()
-        elif sys.argv[1] == "client":
-            run_modbus_client_ns()
-        elif sys.argv[1] == "s7":
-            run_s7_simulation_ns()
-        else:
-            print("Nieznany argument")
-            sys.exit(1)
-    else:
-        # Czyszczenie poprzedniej konfiguracji
-        initial_cleanup()
+    setup_network()
 
-        # Tworzenie mostu
-        try:
-            run_command(f"ip link show {BRIDGE_NAME}")
-            print(f"Most {BRIDGE_NAME} już istnieje.")
-        except:
-            create_bridge(BRIDGE_NAME)
-            run_command(f"ip link set {BRIDGE_NAME} up")
-            print(f"Most {BRIDGE_NAME} utworzony i włączony.")
+    # Uruchomienie serwera Modbus w przestrzeni nazw ns_server
+    modbus_server_thread = threading.Thread(target=lambda: subprocess.run(
+        'ip netns exec ns_server python3 -c "from __main__ import modbus_server; modbus_server()"', shell=True))
+    modbus_server_thread.start()
 
-        # Tworzenie przestrzeni nazw
-        create_namespace(SERVER_NS)
-        create_namespace(CLIENT_NS)
+    # Uruchomienie klienta Modbus w przestrzeni nazw ns_client_modbus
+    modbus_client_thread = threading.Thread(target=lambda: subprocess.run(
+        'ip netns exec ns_client_modbus python3 -c "from __main__ import modbus_client; modbus_client()"', shell=True))
+    modbus_client_thread.start()
 
-        # Tworzenie par veth dla klienta
-        create_veth(VETH_CLIENT_BRIDGE, VETH_CLIENT_NS)
-        set_veth_namespace(VETH_CLIENT_NS, CLIENT_NS)
-        setup_interface(CLIENT_NS, VETH_CLIENT_NS, CLIENT_MODBUS_IP)
-        setup_interface(CLIENT_NS, VETH_CLIENT_NS, CLIENT_S7_IP)
-        set_interface_up_global(VETH_CLIENT_BRIDGE)
-        add_to_bridge(BRIDGE_NAME, VETH_CLIENT_BRIDGE)
+    # Uruchomienie serwera S7 w przestrzeni nazw ns_server
+    s7_server_thread = threading.Thread(target=lambda: subprocess.run(
+        'ip netns exec ns_server python3 -c "from __main__ import s7_server; s7_server()"', shell=True))
+    s7_server_thread.start()
 
-        # Tworzenie par veth dla serwera
-        create_veth(VETH_SERVER_BRIDGE, VETH_SERVER_NS)
-        set_veth_namespace(VETH_SERVER_NS, SERVER_NS)
-        setup_interface(SERVER_NS, VETH_SERVER_NS, SERVER_IP)
-        set_interface_up_global(VETH_SERVER_BRIDGE)
-        add_to_bridge(BRIDGE_NAME, VETH_SERVER_BRIDGE)
+    # Uruchomienie klienta S7 w przestrzeni nazw ns_client_s7
+    s7_client_thread = threading.Thread(target=lambda: subprocess.run(
+        'ip netns exec ns_client_s7 python3 -c "from __main__ import s7_client; s7_client()"', shell=True))
+    s7_client_thread.start()
 
-        # Konfiguracja trasowania
-        setup_routing()
+    # Dołączenie wątków
+    modbus_server_thread.join()
+    modbus_client_thread.join()
+    s7_server_thread.join()
+    s7_client_thread.join()
 
-        # Uruchomienie serwera Modbus w przestrzeni server_ns
-        script_path = os.path.abspath(sys.argv[0])
-        server_thread = threading.Thread(target=lambda: subprocess.Popen(
-            f"ip netns exec {SERVER_NS} python3 {script_path} server",
-            shell=True
-        ))
-        server_thread.start()
-
-        # Uruchomienie symulacji S7 w przestrzeni server_ns
-        s7_thread = threading.Thread(target=lambda: subprocess.Popen(
-            f"ip netns exec {SERVER_NS} python3 {script_path} s7",
-            shell=True
-        ))
-        s7_thread.start()
-
-        # Uruchomienie klienta Modbus w przestrzeni client_ns
-        client_thread = threading.Thread(target=lambda: subprocess.Popen(
-            f"ip netns exec {CLIENT_NS} python3 {script_path} client",
-            shell=True
-        ))
-        client_thread.start()
-
-        # Utrzymanie głównego wątku aktywnego
-        try:
-            while True:
-                time.sleep(1)
-        except KeyboardInterrupt:
-            cleanup()
-
-if __name__ == "__main__":
+if __name__ == '__main__':
     main()
