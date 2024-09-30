@@ -166,7 +166,7 @@ def run_s7_simulation_ns():
 
         # Wysyłanie pakietu
         send(s7_packet, verbose=False)
-        print(f"[server_ns] Pakiet S7 wysłany z 192.168.82.20 do 192.168.81.1:{S7_SERVER_PORT}")
+        print(f"[client_ns] Pakiet S7 wysłany z 192.168.82.20 do 192.168.81.1:{S7_SERVER_PORT}")
 
         time.sleep(5)
 
@@ -225,19 +225,19 @@ def main():
         ))
         server_thread.start()
 
-        # Uruchomienie symulacji S7 w przestrzeni server_ns
-        s7_thread = threading.Thread(target=lambda: subprocess.Popen(
-            f"ip netns exec {SERVER_NS} python3 {script_path} s7",
-            shell=True
-        ))
-        s7_thread.start()
-
         # Uruchomienie klienta Modbus w przestrzeni client_ns
         client_thread = threading.Thread(target=lambda: subprocess.Popen(
             f"ip netns exec {CLIENT_NS} python3 {script_path} client",
             shell=True
         ))
         client_thread.start()
+
+        # Uruchomienie symulacji S7 w przestrzeni client_ns
+        s7_thread = threading.Thread(target=lambda: subprocess.Popen(
+            f"ip netns exec {CLIENT_NS} python3 {script_path} s7",
+            shell=True
+        ))
+        s7_thread.start()
 
         # Utrzymanie głównego wątku aktywnego
         try:
