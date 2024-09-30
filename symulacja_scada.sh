@@ -40,8 +40,8 @@ function cleanup {
 trap cleanup EXIT
 
 # Ustaw nazwy interfejsów
-IFACE_SERVER="eth0"      # Zmień na nazwę interfejsu serwera
-IFACE_MODBUS="eth1"      # Zmień na nazwę interfejsu klienta Modbus
+IFACE_SERVER="ens37"      # Zmień na nazwę interfejsu serwera
+IFACE_MODBUS="ens38"      # Zmień na nazwę interfejsu klienta Modbus
 
 # Sprawdź, czy interfejsy istnieją
 if ! ip link show $IFACE_SERVER &>/dev/null; then
@@ -104,7 +104,8 @@ store = ModbusSlaveContext(
     ir=ModbusSequentialDataBlock(0, [17]*100))
 context = ModbusServerContext(slaves=store, single=True)
 StartTcpServer(context, address=(\"192.168.81.10\", 502))
-" &' &
+" ' &
+
 echo "Serwer Modbus uruchomiony"
 
 # Uruchomienie serwera S7 w ns_server
@@ -116,7 +117,8 @@ server = S7Server()
 server.start(tcpport=102)
 while True:
     time.sleep(1)
-" &' &
+" ' &
+
 echo "Serwer S7 uruchomiony"
 
 # Czekamy na uruchomienie serwerów
@@ -141,7 +143,8 @@ except Exception as e:
     print(f\"Modbus Client Error: {e}\")
 finally:
     client.close()
-" &' &
+" ' &
+
 echo "Klient Modbus uruchomiony"
 
 # Uruchomienie klienta S7 w ns_client_s7
@@ -165,7 +168,8 @@ except Exception as e:
     print(f\"S7 Client Error: {e}\")
 finally:
     client.disconnect()
-" &' &
+" ' &
+
 echo "Klient S7 uruchomiony"
 
 # Utrzymanie skryptu aktywnego
