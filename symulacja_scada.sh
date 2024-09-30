@@ -142,7 +142,7 @@ try:
 except Exception as e:
     print(f\"Modbus Client Error: {e}\")
 finally:
-    client.close()
+        client.close()
 " ' &
 
 echo "Klient Modbus uruchomiony"
