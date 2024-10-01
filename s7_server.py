@@ -1,6 +1,7 @@
 # s7_server.py
 import snap7
 from snap7.server import Server
+from snap7.snap7types import S7AreaDB
 import random
 import threading
 import time
@@ -19,38 +20,43 @@ def update_s7_data(server):
 
 def run_s7_server():
     server = Server()
+    
+    # Ustawienie adresu IP serwera
     try:
-        # Używamy tylko pozycyjnych argumentów
-        server.create("192.168.81.1", 0, 1)  # IP, Rack, Slot
-    except TypeError as e:
-        print(f"[S7 Server] Błąd podczas tworzenia serwera: {e}")
-        return
-    except Exception as e:
-        print(f"[S7 Server] Inny błąd podczas tworzenia serwera: {e}")
+        server.set_param_server_ip("192.168.81.1")
+    except AttributeError as e:
+        print(f"[S7 Server] Błąd podczas ustawiania IP serwera: {e}")
         return
 
+    # Uruchomienie serwera
     try:
         server.start()
     except Exception as e:
         print(f"[S7 Server] Błąd podczas uruchamiania serwera: {e}")
         return
+    print("[S7 Server] Uruchomiono serwer S7 na 192.168.81.1")
 
+    # Rejestracja bloków danych
     try:
-        # Utwórz blok danych DB1 z 2 bajtami (INT)
-        server.db_create(1, 2)  # DB1 z 2 bajtami
+        # Rejestracja Bloku Danych 1 (DB1) z 2 bajtami (INT)
+        server.register_area(S7AreaDB, 1, 2)  # Area, DB number, size
+    except TypeError as e:
+        print(f"[S7 Server] Błąd podczas rejestrowania DB1: {e}")
+        server.stop()
+        server.destroy()
+        return
     except Exception as e:
-        print(f"[S7 Server] Błąd podczas tworzenia DB1: {e}")
+        print(f"[S7 Server] Inny błąd podczas rejestrowania DB1: {e}")
         server.stop()
         server.destroy()
         return
 
-    print("[S7 Server] Uruchomiono serwer S7 na 192.168.81.1")
-
-    # Start thread to update data
+    # Uruchomienie wątku aktualizującego dane
     thread = threading.Thread(target=update_s7_data, args=(server,))
     thread.daemon = True
     thread.start()
 
+    # Utrzymanie serwera w działaniu
     try:
         while True:
             time.sleep(1)
