@@ -1,4 +1,4 @@
-otserver@ot-server:~/Downloads$ sudo python3 s7_server.py                                 
+otserver@ot-server:~/Downloads$ sudo python3 s7_server.py                         
 Traceback (most recent call last):
   File "/home/otserver/Downloads/s7_server.py", line 41, in <module>
     run_s7_server()
@@ -6,3 +6,10 @@ Traceback (most recent call last):
     server.init("192.168.81.1", 0, 1)  # Rack=0, Slot=1
     ^^^^^^^^^^^
 AttributeError: 'Server' object has no attribute 'init'
+otserver@ot-server:~/Downloads$ python3 -c "import snap7; sever = snap7.server.Server(); print(dir(server))"
+Traceback (most recent call last):
+  File "<string>", line 1, in <module>
+NameError: name 'server' is not defined. Did you mean: 'sever'?
+otserver@ot-server:~/Downloads$ python3 -c "import snap7; server = snap7.server.Server(); print(dir(server))"
+['__annotations__', '__class__', '__del__', '__delattr__', '__dict__', '__dir__', '__doc__', '__enter__', '__eq__', '__exit__', '__format__', '__ge__', '__getattribute__', '__getstate__', '__gt__', '__hash__', '__init__', '__init_subclass__', '__le__', '__lt__', '__module__', '__ne__', '__new__', '__reduce__', '__reduce_ex__', '__repr__', '__setattr__', '__sizeof__', '__str__', '__subclasshook__', '__weakref__', '_callback', '_lib', '_read_callback', '_s7_server', '_set_log_callback', 'clear_events', 'create', 'destroy', 'event_text', 'get_mask', 'get_param', 'get_status', 'lock_area', 'pick_event', 'register_area', 'set_cpu_status', 'set_events_callback', 'set_mask', 'set_param', 'set_read_events_callback', 'start', 'start_to', 'stop', 'unlock_area', 'unregister_area']
+otserver@ot-server:~/Downloads$ 
