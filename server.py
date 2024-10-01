@@ -1,5 +1,7 @@
 import time
-from pymodbus.server import ModbusTcpServer
+import random
+import asyncio
+from pymodbus.server.async_io import StartTcpServer
 from pymodbus.datastore import ModbusSlaveContext, ModbusServerContext, ModbusSequentialDataBlock
 from pymodbus.device import ModbusDeviceIdentification
 import snap7
@@ -31,13 +33,12 @@ def setup_s7_server():
     return s7_server
 
 # Funkcja uruchamiająca serwer Modbus
-def start_modbus_server():
+async def start_modbus_server():
     context = setup_modbus_server()
 
     # Tworzymy instancję serwera TCP
     print("Uruchamianie serwera Modbus na adresie 192.168.81.1:502...")
-    server = ModbusTcpServer(context, address=("192.168.81.1", 502))
-    server.serve_forever()
+    await StartTcpServer(context, address=("192.168.81.1", 502))
 
 # Funkcja uruchamiająca serwer S7
 def start_s7_server():
@@ -48,21 +49,19 @@ def start_s7_server():
     return s7_server
 
 # Funkcja główna uruchamiająca oba serwery
-def start_servers():
+async def start_servers():
     # Uruchamianie serwera Modbus
-    print("Uruchamianie serwera Modbus...")
-    start_modbus_server()
+    modbus_task = asyncio.create_task(start_modbus_server())
 
     # Uruchamianie serwera S7
     s7_server = start_s7_server()
 
     try:
-        while True:
-            print("Serwery działają...")
-            time.sleep(5)
+        await modbus_task
     except KeyboardInterrupt:
         print("Zatrzymywanie serwerów...")
         s7_server.stop()
 
 if __name__ == "__main__":
-    start_servers()
+    loop = asyncio.get_event_loop()
+    loop.run_until_complete(start_servers())
