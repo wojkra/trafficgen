@@ -1,10 +1,19 @@
 # modbus_client.py
-from pymodbus.client.sync import ModbusTcpClient
+from pymodbus.client import ModbusTcpClient
+from pymodbus.exceptions import ModbusException
 import time
+import struct
+import logging
+import random
+
+# Ustawienie logowania dla debugowania
+logging.basicConfig()
+log = logging.getLogger()
+log.setLevel(logging.INFO)  # Możesz zmienić na DEBUG, jeśli potrzebujesz więcej informacji
 
 # Konfiguracja klienta
 SERVER_IP = '192.168.81.1'  # Adres IP serwera Modbus
-SERVER_PORT = 5020           # Port serwera Modbus
+SERVER_PORT = 502           # Port serwera Modbus
 
 # Inicjalizacja klienta
 client = ModbusTcpClient(SERVER_IP, port=SERVER_PORT)
@@ -34,6 +43,9 @@ def read_registers(unit=1, address=0, count=2):
         else:
             print(f"[Modbus Client] Błąd podczas odczytu rejestrów: {result}")
             return None
+    except ModbusException as e:
+        print(f"[Modbus Client] Błąd Modbus podczas odczytu rejestrów: {e}")
+        return None
     except Exception as e:
         print(f"[Modbus Client] Wyjątek podczas odczytu rejestrów: {e}")
         return None
@@ -57,6 +69,9 @@ def write_registers(unit=1, address=0, values=None):
         else:
             print(f"[Modbus Client] Błąd podczas zapisu rejestrów: {result}")
             return False
+    except ModbusException as e:
+        print(f"[Modbus Client] Błąd Modbus podczas zapisu rejestrów: {e}")
+        return False
     except Exception as e:
         print(f"[Modbus Client] Wyjątek podczas zapisu rejestrów: {e}")
         return False
@@ -65,17 +80,20 @@ def main():
     try:
         connect_client()
         while True:
-            # Odczyt rejestrów z adresu 0 (DB1 w Twoim przypadku)
+            # Odczyt rejestrów z adresu 0 (możesz zmienić adres na odpowiedni)
             registers = read_registers(address=0, count=2)
             if registers is not None:
-                # Konwersja wartości z rejestrów (przykład: INT)
-                value = (registers[0] << 16) + registers[1]  # Zakładamy 32-bitowy INT
+                # Konwersja wartości z rejestrów (przykład: 32-bitowy INT)
+                packed = struct.pack('>HH', registers[0], registers[1])
+                value = struct.unpack('>I', packed)[0]
                 print(f"[Modbus Client] Odczytano wartość {value} z rejestrów.")
 
-                # Przykładowa operacja zapisu: zwiększenie wartości o 1
-                new_value = value + 1
+                # Przykładowa operacja zapisu: losowa wartość w zakresie 10-20
+                new_value = random.randint(10, 20)
+                print(f"[Modbus Client] Zapisuję nową wartość: {new_value}")
+
                 # Konwersja wartości do dwóch rejestrów (32-bitowy INT)
-                new_registers = [(new_value >> 16) & 0xFFFF, new_value & 0xFFFF]
+                new_registers = struct.unpack('>HH', struct.pack('>I', new_value))
                 write_registers(address=0, values=new_registers)
             else:
                 print("[Modbus Client] Nie udało się odczytać rejestrów.")
