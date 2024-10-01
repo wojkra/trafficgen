@@ -20,8 +20,8 @@ def update_s7_data(server):
 def run_s7_server():
     server = Server()
     try:
-        # Użyj argumentów kluczowych zamiast pozycyjnych
-        server.create(ip_address="192.168.81.1", rack=0, slot=1)  # Rack=0, Slot=1
+        # Używamy tylko pozycyjnych argumentów
+        server.create("192.168.81.1", 0, 1)  # IP, Rack, Slot
     except TypeError as e:
         print(f"[S7 Server] Błąd podczas tworzenia serwera: {e}")
         return
