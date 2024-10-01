@@ -14,31 +14,32 @@ def update_s7_data(server):
             server.db_write(1, 0, data)
             print(f"[S7 Server] Updated DB1, offset 0 to {value}")
         except Exception as e:
-            print(f"[S7 Server] Error updating DB1: {e}")
+            print(f"[S7 Server] Błąd podczas zapisu do DB1: {e}")
         time.sleep(5)
 
 def run_s7_server():
     server = Server()
-    
-    # Konfiguracja serwera: adres IP, rack, slot
     try:
-        server.create("192.168.81.1", 0, 1)  # Rack=0, Slot=1
+        # Użyj argumentów kluczowych zamiast pozycyjnych
+        server.create(ip_address="192.168.81.1", rack=0, slot=1)  # Rack=0, Slot=1
+    except TypeError as e:
+        print(f"[S7 Server] Błąd podczas tworzenia serwera: {e}")
+        return
     except Exception as e:
-        print(f"[S7 Server] Error creating server: {e}")
+        print(f"[S7 Server] Inny błąd podczas tworzenia serwera: {e}")
         return
 
     try:
         server.start()
     except Exception as e:
-        print(f"[S7 Server] Error starting server: {e}")
-        server.destroy()
+        print(f"[S7 Server] Błąd podczas uruchamiania serwera: {e}")
         return
 
-    # Utwórz blok danych DB1 z 2 bajtami (INT)
     try:
-        server.create_db(1, 2)  # DB1 z 2 bajtami
+        # Utwórz blok danych DB1 z 2 bajtami (INT)
+        server.db_create(1, 2)  # DB1 z 2 bajtami
     except Exception as e:
-        print(f"[S7 Server] Error creating DB1: {e}")
+        print(f"[S7 Server] Błąd podczas tworzenia DB1: {e}")
         server.stop()
         server.destroy()
         return
