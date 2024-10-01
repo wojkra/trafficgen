@@ -1,13 +1,34 @@
-otserver@ot-server:~/Downloads$ git clone https://github.com/gijzelaerr/snap7.git
-fatal: destination path 'snap7' already exists and is not an empty directory.
-otserver@ot-server:~/Downloads$ git clone https://github.com/gijzelaerr/snap7.git
-Cloning into 'snap7'...
-remote: Enumerating objects: 1478, done.
-remote: Total 1478 (delta 0), reused 0 (delta 0), pack-reused 1478 (from 1)
-Receiving objects: 100% (1478/1478), 38.18 MiB | 8.68 MiB/s, done.
-Resolving deltas: 100% (679/679), done.
-Updating files: 100% (1251/1251), done.
+otserver@ot-server:~/Downloads/snap7$ cd build/
+otserver@ot-server:~/Downloads/snap7/build$ cd unix/
+otserver@ot-server:~/Downloads/snap7/build/unix$ cmake ../..
+CMake Warning:
+  Ignoring extra path from command line:                                                                              
+                                                                                                                      
+   "../.."                                                                                                            
+                                                                                                                      
+                                                                                                                      
+CMake Error: The source directory "/home/otserver/Downloads/snap7" does not appear to contain CMakeLists.txt.
+Specify --help for usage, or press the help button on the CMake GUI.
+otserver@ot-server:~/Downloads/snap7/build/unix$ 
+otserver@ot-server:~/Downloads/snap7/build/unix$ 
+otserver@ot-server:~/Downloads/snap7/build/unix$ 
+otserver@ot-server:~/Downloads/snap7/build/unix$ 
+otserver@ot-server:~/Downloads/snap7/build/unix$ 
+otserver@ot-server:~/Downloads/snap7/build/unix$ cd
+otserver@ot-server:~$ 
+otserver@ot-server:~$ 
+otserver@ot-server:~$ 
+otserver@ot-server:~$ cd Downloads/
 otserver@ot-server:~/Downloads$ cd snap7/
 otserver@ot-server:~/Downloads/snap7$ ls
 build   doc       gpl.txt  lgpl-3.0.txt  release     src      win-clean.bat
 debian  examples  LabVIEW  README.txt    rich-demos  utility
+otserver@ot-server:~/Downloads/snap7$ cd build/
+otserver@ot-server:~/Downloads/snap7/build$ ls
+bin  osx  README.txt  temp  unix  windows
+otserver@ot-server:~/Downloads/snap7/build$ cd unix/
+otserver@ot-server:~/Downloads/snap7/build/unix$ ls
+arm_v6_linux.mk  i386_bsd.mk         i386_solaris_gcc.mk  x86_64_bsd.mk         x86_64_solaris_gcc.mk
+arm_v7_linux.mk  i386_linux.mk       mips_linux.mk        x86_64_linux.mk
+common.mk        i386_solaris_cc.mk  README.txt           x86_64_solaris_cc.mk
+otserver@ot-server:~/Downloads/snap7/build/unix$ 
