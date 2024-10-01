@@ -1,6 +1,5 @@
 import time
-import random
-from pymodbus.server.sync import StartTcpServer
+from pymodbus.server import ModbusTcpServer
 from pymodbus.datastore import ModbusSlaveContext, ModbusServerContext, ModbusSequentialDataBlock
 from pymodbus.device import ModbusDeviceIdentification
 import snap7
@@ -23,7 +22,7 @@ def setup_modbus_server():
     identity.ModelName = 'ModbusServer'
     identity.MajorMinorRevision = '1.0'
 
-    return context, identity
+    return context
 
 # Konfiguracja serwera S7
 def setup_s7_server():
@@ -31,17 +30,31 @@ def setup_s7_server():
     s7_server.register_area(snap7.types.areas.DB, 1, bytearray(100))
     return s7_server
 
-# Funkcja uruchamiająca oba serwery
-def start_servers():
-    # Serwer Modbus
-    modbus_context, modbus_identity = setup_modbus_server()
-    print("Uruchamianie serwera Modbus...")
-    StartTcpServer(modbus_context, identity=modbus_identity, address=("192.168.81.1", 502))
+# Funkcja uruchamiająca serwer Modbus
+def start_modbus_server():
+    context = setup_modbus_server()
 
-    # Serwer S7
+    # Tworzymy instancję serwera TCP
+    print("Uruchamianie serwera Modbus na adresie 192.168.81.1:502...")
+    server = ModbusTcpServer(context, address=("192.168.81.1", 502))
+    server.serve_forever()
+
+# Funkcja uruchamiająca serwer S7
+def start_s7_server():
     s7_server = setup_s7_server()
     print("Uruchamianie serwera S7 na porcie 102...")
     s7_server.start(tcpport=102)
+    
+    return s7_server
+
+# Funkcja główna uruchamiająca oba serwery
+def start_servers():
+    # Uruchamianie serwera Modbus
+    print("Uruchamianie serwera Modbus...")
+    start_modbus_server()
+
+    # Uruchamianie serwera S7
+    s7_server = start_s7_server()
 
     try:
         while True:
