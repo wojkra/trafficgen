@@ -32,9 +32,9 @@ def run_modbus_server():
     thread.daemon = True
     thread.start()
 
-    # Start Modbus server na interfejsie ens36 (192.168.81.10) port 5020
-    print("[Modbus Server] Uruchamianie serwera Modbus na 192.168.81.10:5020")
-    StartTcpServer(context, identity=identity, address=("192.168.81.10", 5020))
+    # Start Modbus server na interfejsie ens34 (192.168.81.1) port 5020
+    print("[Modbus Server] Uruchamianie serwera Modbus na 192.168.81.1:5020")
+    StartTcpServer(context, identity=identity, address=("192.168.81.1", 5020))
 
 if __name__ == "__main__":
     run_modbus_server()
