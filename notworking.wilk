@@ -1,18 +1,8 @@
-otserver@ot-server:~/Downloads$ python3 modbus_server.py 
-[Modbus Server] Updated holding register to 14
-[Modbus Server] Uruchamianie serwera Modbus na 192.168.81.1:502
+otserver@ot-server:~/Downloads$ sudo python3 s7_server.py                                 
 Traceback (most recent call last):
-  File "/home/otserver/Downloads/modbus_server.py", line 40, in <module>
-    run_modbus_server()
-  File "/home/otserver/Downloads/modbus_server.py", line 37, in run_modbus_server
-    StartTcpServer(context, identity=identity, address=("192.168.81.1", 502))
-  File "/home/otserver/.local/lib/python3.12/site-packages/pymodbus/server/sync.py", line 620, in StartTcpServer
-    server = ModbusTcpServer(context, framer, identity, address, **kwargs)
-             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "/home/otserver/.local/lib/python3.12/site-packages/pymodbus/server/sync.py", line 338, in __init__
-    socketserver.ThreadingTCPServer.__init__(self, self.address,
-  File "/usr/lib/python3.12/socketserver.py", line 457, in __init__
-    self.server_bind()
-  File "/usr/lib/python3.12/socketserver.py", line 473, in server_bind
-    self.socket.bind(self.server_address)
-PermissionError: [Errno 13] Permission denied
+  File "/home/otserver/Downloads/s7_server.py", line 41, in <module>
+    run_s7_server()
+  File "/home/otserver/Downloads/s7_server.py", line 19, in run_s7_server
+    server.init("192.168.81.1", 0, 1)  # Rack=0, Slot=1
+    ^^^^^^^^^^^
+AttributeError: 'Server' object has no attribute 'init'
