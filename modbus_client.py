@@ -1,5 +1,5 @@
 # modbus_client.py
-from pymodbus.client import ModbusTcpClient
+from pymodbus.client.sync import ModbusTcpClient
 from pymodbus.exceptions import ModbusException
 import time
 import struct
