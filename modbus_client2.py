@@ -49,7 +49,7 @@ def read_registers(unit=1, address=0, count=1):
         print(f"[Modbus Client] Wyjątek podczas odczytu rejestru: {e}")
         return None
 
-def write_registers(unit=1, address=0, value=None):
+def write_registers(unit=1, address=1, value=None):
     """
     Zapis rejestru na serwerze Modbus.
     :param unit: ID urządzenia Modbus (domyślnie 1)
@@ -79,21 +79,21 @@ def main():
     try:
         connect_client()
         while True:
-            # Odczyt rejestru z adresu 0 (r1)
+            # Odczyt rejestru z adresu 0 (r0)
             registers = read_registers(address=0, count=1)
             if registers is not None:
                 value = registers[0]
-                print(f"[Modbus Client] Odczytano wartość {value} z rejestru r1.")
-    
+                print(f"[Modbus Client] Odczytano wartość {value} z rejestru r0.")
+
                 # Przykładowa operacja zapisu: losowa wartość w zakresie 10-20
                 new_value = random.randint(10, 20)
                 print(f"[Modbus Client] Zapisuję nową wartość: {new_value} do rejestru r1.")
-    
-                # Zapis do rejestru r1 (address=0)
-                write_registers(address=0, value=new_value)
+
+                # Zapis do rejestru r1 (adres=1)
+                write_registers(address=1, value=new_value)
             else:
-                print("[Modbus Client] Nie udało się odczytać rejestru r1.")
-    
+                print("[Modbus Client] Nie udało się odczytać rejestru r0.")
+
             time.sleep(5)  # Czekaj 5 sekund przed następnym cyklem
     except KeyboardInterrupt:
         print("\n[Modbus Client] Zatrzymano klienta Modbus.")
