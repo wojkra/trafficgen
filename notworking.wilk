@@ -1,4 +1,87 @@
-[Modbus Client] Połączono z serwerem Modbus (IP: 192.168.81.1, Port: 502).
-[Modbus Client] Odczytano wartość 786432 z rejestrów 0.
-[Modbus Client] Zapisuję nową wartość: 18 do rejestru 1.
-[Modbus Client] Zapisano wartości (0, 18) do rejestrów 1.
+otclient@ot-client:~/Downloads/snap7$ tree -L 3
+.
+├── build
+│   ├── bin
+│   │   ├── arm_v6-linux
+│   │   ├── arm_v7-linux
+│   │   ├── arm_v7_x64-linux
+│   │   └── README.txt
+│   ├── README.txt
+│   ├── temp
+│   │   ├── arm_v6
+│   │   ├── arm_v7
+│   │   ├── arm_v7_x64
+│   │   └── README.txt
+│   └── unix
+│       ├── arm_v6_linux.mk
+│       ├── arm_v7_linux.mk
+│       ├── arm_v7_x64_linux.mk
+│       ├── common.mk
+│       └── readme.txt
+├── examples
+│   ├── cpp
+│   │   ├── apartner.cpp
+│   │   ├── arm_v6-linux
+│   │   ├── arm_v7-linux
+│   │   ├── client.cpp
+│   │   ├── ppartner.cpp
+│   │   ├── server.cpp
+│   │   ├── server_v10.cpp
+│   │   ├── snap7.cpp
+│   │   ├── snap7.h
+│   │   └── srv_resourceless.cpp
+│   └── plain-c
+│       ├── apartner.c
+│       ├── arm_v6-linux
+│       ├── arm_v7-linux
+│       ├── client.c
+│       ├── ppartner.c
+│       ├── server.c
+│       ├── snap7.h
+│       └── srv_resourceless.c
+├── gpl.txt
+├── lgpl-3.0.txt
+├── readme.txt
+├── release
+│   └── Linux
+│       ├── arm_v6
+│       ├── arm_v7
+│       └── arm_v7_x64
+└── src
+    ├── core
+    │   ├── s7_client.cpp
+    │   ├── s7_client.h
+    │   ├── s7_firmware.h
+    │   ├── s7_isotcp.cpp
+    │   ├── s7_isotcp.h
+    │   ├── s7_micro_client.cpp
+    │   ├── s7_micro_client.h
+    │   ├── s7_partner.cpp
+    │   ├── s7_partner.h
+    │   ├── s7_peer.cpp
+    │   ├── s7_peer.h
+    │   ├── s7_server.cpp
+    │   ├── s7_server.h
+    │   ├── s7_text.cpp
+    │   ├── s7_text.h
+    │   └── s7_types.h
+    ├── lib
+    │   ├── snap7.def
+    │   ├── snap7_libmain.cpp
+    │   └── snap7_libmain.h
+    └── sys
+        ├── snap_msgsock.cpp
+        ├── snap_msgsock.h
+        ├── snap_platform.h
+        ├── snap_sysutils.cpp
+        ├── snap_sysutils.h
+        ├── snap_tcpsrvr.cpp
+        ├── snap_tcpsrvr.h
+        ├── snap_threads.cpp
+        ├── snap_threads.h
+        ├── sol_threads.h
+        ├── unix_threads.h
+        └── win_threads.h
+
+27 directories, 56 files
+otclient@ot-client:~/Downloads/snap7$ 
