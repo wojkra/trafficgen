@@ -1,0 +1,15 @@
+[Unit]
+Description=Traffic Generator for Firewall Testing
+After=network.target
+
+[Service]
+ExecStart=/opt/trafficgen/traffic_generator.sh
+Restart=always
+RestartSec=10
+User=root
+WorkingDirectory=/opt/trafficgen
+StandardOutput=append:/var/log/trafficgen.log
+StandardError=append:/var/log/trafficgen.err.log
+
+[Install]
+WantedBy=multi-user.target
